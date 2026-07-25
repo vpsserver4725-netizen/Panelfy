@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Panelfy</title>
+<style>
+:root{--bg:#0b0e14;--panel:#11151d;--panel2:#161c26;--line:#232a37;--txt:#e6ebf3;--sub:#8b96a8;--accent:#5eead4;--accent2:#a78bfa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--txt);font-family:Inter,'Segoe UI',sans-serif;display:flex;min-height:100vh}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#2a3241;border-radius:4px}
+.hidden{display:none!important}
+
+/* LOGIN */
+#loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:99}
+#loginBox{width:340px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px}
+#loginBox .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#0b0e14;margin:0 auto 14px}
+#loginBox h2{text-align:center;margin-bottom:4px}
+#loginBox p{text-align:center;color:var(--sub);font-size:12px;margin-bottom:20px}
+#loginErr{color:var(--danger);font-size:12px;margin-top:8px;min-height:14px;text-align:center}
+
+#side{width:230px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
+#brand{padding:22px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+#brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#0b0e14;font-size:15px}
+#brand span{font-weight:700;font-size:18px}
+nav{flex:1;padding:14px 10px}
+nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);padding:14px 10px 6px}
+nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--sub);text-decoration:none;font-size:14px;cursor:pointer;margin:1px 0}
+nav a:hover{background:var(--panel2);color:var(--txt)}
+nav a.active{background:#1c2531;color:var(--accent);font-weight:600}
+#userbox{padding:14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
+#userbox .av{width:32px;height:32px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#0b0e14;font-size:13px}
+#userbox .who small{display:block;color:var(--sub);font-size:11px}
+#logoutBtn{margin-left:auto;background:none;border:none;color:var(--sub);cursor:pointer;font-size:16px}
+
+#main{flex:1;overflow-y:auto;height:100vh}
+header.top{padding:20px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:rgba(11,14,20,.9);backdrop-filter:blur(8px);z-index:5}
+.btn{background:var(--accent);color:#08201c;border:none;padding:9px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
+.btn.danger{background:var(--danger);color:#2a0a0a}
+.btn.sm{padding:6px 11px;font-size:12px}
+.wrap{padding:26px 32px}
+.grid{display:grid;gap:16px}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.stat .num{font-size:26px;font-weight:800}
+.stat .lbl{color:var(--sub);font-size:12px;margin-top:4px}
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:28px 0 12px}
+.section-title h2{font-size:15px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;color:var(--sub);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--line)}
+td{padding:12px;border-bottom:1px solid var(--line);font-size:13px}
+.svcard{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--panel2)}
+.svcard .ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:#0b0e14}
+.svcard .body{flex:1}
+.svcard .name{font-weight:600;font-size:14px;cursor:pointer}
+.svcard .meta{color:var(--sub);font-size:12px;margin-top:2px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
+.dot.on{background:var(--ok)}.dot.off{background:var(--danger)}
+.tag{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
+.tag.on{background:#123024;color:var(--ok)}.tag.off{background:#2c1414;color:var(--danger)}
+.modal-bg{position:fixed;inset:0;background:rgba(5,7,11,.7);display:none;align-items:center;justify-content:center;z-index:50}
+.modal-bg.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:560px;max-width:92vw;max-height:88vh;overflow-y:auto}
+.modal h3{padding:18px 22px;border-bottom:1px solid var(--line);font-size:16px}
+.modal .mbody{padding:20px 22px}
+.modal .mfoot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px}
+.field input,.field select{width:100%;background:#0b0e14;border:1px solid var(--line);color:var(--txt);padding:9px 11px;border-radius:8px;font-size:13px}
+.typechoice{display:flex;gap:10px;margin-bottom:14px}
+.typechoice div{flex:1;border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center;cursor:pointer;font-size:13px;font-weight:600}
+.typechoice div.sel{border-color:var(--accent);background:#0f2420;color:var(--accent)}
+.toggle{position:relative;width:38px;height:21px;background:#232a37;border-radius:20px;cursor:pointer;flex-shrink:0}
+.toggle i{position:absolute;top:2px;left:2px;width:17px;height:17px;background:#8b96a8;border-radius:50%;transition:.15s}
+.toggle.on{background:#123024}.toggle.on i{left:19px;background:var(--ok)}
+.playit-ip{font-family:monospace;background:#0b0e14;padding:8px 12px;border-radius:8px;display:inline-block;margin:10px 0;color:var(--accent)}
+.empty{text-align:center;padding:40px;color:var(--sub);font-size:13px}
+#console{background:#000;color:#0f0;font-family:monospace;font-size:12px;padding:14px;height:340px;overflow-y:auto;border-radius:8px;white-space:pre-wrap}
+#cmdRow{display:flex;gap:8px;margin-top:10px}
+#cmdRow input{flex:1;background:#0b0e14;border:1px solid var(--line);color:var(--txt);padding:9px 11px;border-radius:8px;font-family:monospace}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div id="loginBox">
+    <div class="logo">P</div>
+    <h2 style="text-align:center">Panelfy</h2>
+    <p>Sign in to manage your servers</p>
+    <div class="field"><label>Username</label><input id="lUser" value="admin"></div>
+    <div class="field"><label>Password</label><input id="lPass" type="password" placeholder="changeme123"></div>
+    <button class="btn" style="width:100%" onclick="doLogin()">Sign In</button>
+    <div id="loginErr"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden" style="display:flex;width:100%">
+  <div id="side">
+    <div id="brand"><div class="logo">P</div><span>Panelfy</span></div>
+    <nav>
+      <div class="grp">Overview</div>
+      <a data-p="dash" class="active">◆ Dashboard</a>
+      <a data-p="servers">▣ My Servers</a>
+      <a data-p="playit">⇄ playit.gg Tunnels</a>
+      <div class="grp" id="adminGrp">Administration</div>
+      <a data-p="users" id="navUsers">◎ Users</a>
+    </nav>
+    <div id="userbox">
+      <div class="av" id="avLetter">?</div>
+      <div class="who"><span id="whoName"></span><small id="roleLabel"></small></div>
+      <button id="logoutBtn" onclick="logout()">⏻</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <header class="top">
+      <div><h1 id="pgTitle">Dashboard</h1></div>
+      <button class="btn" onclick="openCreate()">+ New Server</button>
+    </header>
+    <div class="wrap">
+      <div id="page-dash">
+        <div class="grid g4">
+          <div class="card stat"><div class="num" id="statOn">0</div><div class="lbl">Servers running</div></div>
+          <div class="card stat"><div class="num" id="statTotal">0</div><div class="lbl">Total servers</div></div>
+          <div class="card stat"><div class="num" id="statMc">0</div><div class="lbl">Minecraft servers</div></div>
+          <div class="card stat"><div class="num" id="statNode">0</div><div class="lbl">Node.js servers</div></div>
+        </div>
+        <div class="section-title"><h2>Your Servers</h2></div>
+        <div id="dashList"></div>
+      </div>
+
+      <div id="page-servers" class="hidden"><div id="serversList"></div></div>
+
+      <div id="page-playit" class="hidden">
+        <div class="card" style="margin-bottom:16px">
+          <b>playit.gg integration</b>
+          <p style="color:var(--sub);font-size:13px;margin-top:6px">Requires PLAYIT_SECRET set on the server (claim an agent at playit.gg/account/agents). Toggle a Minecraft server below to expose it with a public IP.</p>
+        </div>
+        <div id="playitList"></div>
+      </div>
+
+      <div id="page-users" class="hidden">
+        <div class="section-title"><h2>All Users</h2><button class="btn sm" onclick="openAddUser()">+ Add User</button></div>
+        <div class="card" style="padding:0">
+          <table><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Admin Access</th><th></th></tr></thead>
+          <tbody id="usersTbody"></tbody></table>
+        </div>
+      </div>
+
+      <div id="page-console" class="hidden">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <b id="consoleTitle">Console</b>
+            <button class="btn sm ghost" onclick="showPage('servers')">← Back</button>
+          </div>
+          <div id="console"></div>
+          <div id="cmdRow"><input id="cmdInput" placeholder="Type a command and press Enter"><button class="btn sm" onclick="sendCmd()">Send</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE SERVER MODAL -->
+<div class="modal-bg" id="createModal">
+  <div class="modal">
+    <h3>Create a New Server</h3>
+    <div class="mbody">
+      <div class="typechoice"><div class="sel" id="tMc" onclick="setType('mc')">⛏ Minecraft</div><div id="tNode" onclick="setType('node')">⬢ Node.js</div></div>
+      <div class="field"><label>Server name</label><input id="fName" placeholder="lifesteal-smp"></div>
+      <div class="field" id="mcOpts">
+        <label>Software</label>
+        <select id="fSoftware"><option>Paper</option><option>Spigot</option><option>Purpur</option><option>Fabric</option><option>Forge</option><option>NeoForge</option><option>Vanilla</option><option>Velocity (Proxy)</option><option>BungeeCord (Proxy)</option><option>Bukkit</option><option>Sponge</option></select>
+      </div>
+      <div class="field" id="mcVerOpt"><label>Minecraft version</label><select id="fMcVer"></select></div>
+      <div class="field hidden" id="nodeOpts">
+        <label>Node.js version</label>
+        <select id="fNodeVer"><option>22</option><option>21</option><option>20</option><option>19</option><option>18</option><option>17</option><option>16</option><option>14</option></select>
+      </div>
+      <div class="field hidden" id="repoOpt"><label>Git repo URL (optional)</label><input id="fRepo" placeholder="https://github.com/you/your-node-app"></div>
+      <div class="field hidden" id="cmdOpt"><label>Start command</label><input id="fStartCmd" placeholder="npm start"></div>
+      <div class="field"><label>CPU cores: <span id="cpuVal">1</span></label><input type="range" min="1" max="8" value="1" id="fCpu" oninput="cpuVal.textContent=this.value"></div>
+      <div class="field"><label>RAM (GB): <span id="ramVal">2</span></label><input type="range" min="1" max="32" value="2" id="fRam" oninput="ramVal.textContent=this.value"></div>
+      <div class="field"><label>Disk (GB): <span id="diskVal">10</span></label><input type="range" min="1" max="100" value="10" id="fDisk" oninput="diskVal.textContent=this.value"></div>
+    </div>
+    <div class="mfoot"><button class="btn ghost" onclick="closeModal('createModal')">Cancel</button><button class="btn" id="deployBtn" onclick="createServer()">Deploy Server</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="userModal">
+  <div class="modal">
+    <h3>Add User</h3>
+    <div class="mbody">
+      <div class="field"><label>Username</label><input id="uName"></div>
+      <div class="field"><label>Email</label><input id="uEmail"></div>
+      <div class="field"><label>Temp Password</label><input id="uPass" placeholder="changeme123"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px"><b style="font-size:13px">Grant admin access</b><div class="toggle" id="uAdminToggle" onclick="this.classList.toggle('on')"><i></i></div></div>
+    </div>
+    <div class="mfoot"><button class="btn ghost" onclick="closeModal('userModal')">Cancel</button><button class="btn" onclick="addUser()">Add User</button></div>
+  </div>
+</div>
+
+<script>
+const API = ''; // same origin
+let token = localStorage.getItem('panelfy_token') || '';
+let me = null;
+let servers = [];
+let consoleWs = null, consoleServerId = null;
+
+const mcVersions = ['26.2','25.4','24.6','1.21.4','1.21.1','1.20.6','1.20.1','1.19.4','1.18.2','1.17.1','1.16.5','1.15.2','1.14.4','1.13.2','1.12.2','1.11.2','1.10.2','1.9.4','1.8.9'];
+document.getElementById('fMcVer').innerHTML = mcVersions.map(v=>`<option>${v}</option>`).join('');
+
+function authHeaders(){ return {'Authorization':'Bearer '+token,'Content-Type':'application/json'}; }
+
+async function doLogin(){
+  const username = document.getElementById('lUser').value;
+  const password = document.getElementById('lPass').value;
+  const r = await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password})});
+  const d = await r.json();
+  if(!r.ok){ document.getElementById('loginErr').textContent = d.error||'Login failed'; return; }
+  token = d.token; localStorage.setItem('panelfy_token', token);
+  me = d.user;
+  boot();
+}
+function logout(){ localStorage.removeItem('panelfy_token'); location.reload(); }
+
+async function boot(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('whoName').textContent = me.username;
+  document.getElementById('avLetter').textContent = me.username[0].toUpperCase();
+  document.getElementById('roleLabel').textContent = (me.admin_enabled?'Admin • Access ON':'User');
+  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('adminGrp').style.display='none'; }
+  await loadServers();
+}
+
+async function loadServers(){
+  const r = await fetch('/api/servers',{headers:authHeaders()});
+  if(r.status===401) return logout();
+  servers = await r.json();
+  render();
+}
+
+// ---- nav ----
+document.querySelectorAll('#side nav a').forEach(a=>a.addEventListener('click',()=>{
+  document.querySelectorAll('#side nav a').forEach(x=>x.classList.remove('active'));
+  a.classList.add('active');
+  showPage(a.dataset.p);
+}));
+function showPage(p){
+  document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('page-'+p).classList.remove('hidden');
+  const titles={dash:'Dashboard',servers:'My Servers',playit:'playit.gg Tunnels',users:'Users',console:'Console'};
+  document.getElementById('pgTitle').textContent = titles[p];
+  if(p==='users') loadUsers();
+}
+
+function svIcon(s){ return s.type==='mc'?'⛏':'⬢'; }
+function svMeta(s){ return s.type==='mc' ? `${s.software} • ${s.version} • ${s.cpu} vCPU / ${s.ram}GB • port ${s.port}` : `Node ${s.version} • ${s.cpu} vCPU / ${s.ram}GB • port ${s.port}`; }
+function svCardHTML(s){
+  return `<div class="svcard">
+    <div class="ic">${svIcon(s)}</div>
+    <div class="body"><div class="name" onclick="openConsole(${s.id},'${s.name}')"><span class="dot ${s.status==='on'?'on':'off'}"></span>${s.name}</div><div class="meta">${svMeta(s)}</div></div>
+    <span class="tag ${s.status==='on'?'on':'off'}">${s.status==='on'?'Running':'Stopped'}</span>
+    <button class="btn sm ghost" onclick="toggleServer(${s.id},'${s.status}')">${s.status==='on'?'Stop':'Start'}</button>
+    <button class="btn sm danger" onclick="deleteServer(${s.id})">Delete</button>
+  </div>`;
+}
+function render(){
+  document.getElementById('statOn').textContent = servers.filter(s=>s.status==='on').length;
+  document.getElementById('statTotal').textContent = servers.length;
+  document.getElementById('statMc').textContent = servers.filter(s=>s.type==='mc').length;
+  document.getElementById('statNode').textContent = servers.filter(s=>s.type==='node').length;
+  document.getElementById('dashList').innerHTML = servers.map(svCardHTML).join('') || '<div class="empty">No servers yet — click "New Server" to deploy one.</div>';
+  document.getElementById('serversList').innerHTML = document.getElementById('dashList').innerHTML;
+  document.getElementById('playitList').innerHTML = servers.filter(s=>s.type==='mc').map(s=>`
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><b>${s.name}</b><div style="color:var(--sub);font-size:12px">${s.software} ${s.version}</div></div>
+        <div class="toggle ${s.playit_active?'on':''}" onclick="togglePlayit(${s.id})"><i></i></div>
+      </div>
+      ${s.playit_active ? `<div style="margin-top:12px"><div style="font-size:12px;color:var(--sub)">Public playit.gg address</div><div class="playit-ip">${s.playit_ip||'…resolving'}</div></div>` : `<div style="font-size:12px;color:var(--sub);margin-top:10px">Tunnel disabled</div>`}
+    </div>`).join('') || '<div class="empty">No Minecraft servers to tunnel.</div>';
+}
+
+async function toggleServer(id,status){
+  await fetch(`/api/servers/${id}/${status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()});
+  await loadServers();
+}
+async function deleteServer(id){
+  if(!confirm('Delete this server and its container permanently?')) return;
+  await fetch(`/api/servers/${id}`,{method:'DELETE',headers:authHeaders()});
+  await loadServers();
+}
+async function togglePlayit(id){
+  const r = await fetch(`/api/servers/${id}/playit/toggle`,{method:'POST',headers:authHeaders()});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  await loadServers();
+  if(d.active && d.status==='pending_claim' && d.claimUrl){
+    window.open(d.claimUrl,'_blank');
+    alert('First time linking this server to playit.gg — approve it in the tab that just opened:\n\n'+d.claimUrl+'\n\nOnce approved the public IP appears automatically. Every restart after this is automatic, no click needed.');
+    pollPlayit(id);
+  }
+}
+function pollPlayit(id){
+  const iv = setInterval(async ()=>{
+    const r = await fetch(`/api/servers/${id}/playit/status`,{headers:authHeaders()});
+    const d = await r.json();
+    if(d.status==='connected' && d.ip){ clearInterval(iv); await loadServers(); }
+    if(!d.active){ clearInterval(iv); }
+  }, 3000);
+  setTimeout(()=>clearInterval(iv), 120000); // give up after 2 min
+}
+
+// ---- users ----
+async function loadUsers(){
+  const r = await fetch('/api/users',{headers:authHeaders()});
+  if(!r.ok) return;
+  const users = await r.json();
+  document.getElementById('usersTbody').innerHTML = users.map(u=>`
+    <tr><td>${u.username}</td><td style="color:var(--sub)">${u.email||''}</td><td>${u.role}</td>
+    <td><div class="toggle ${u.admin_enabled?'on':''}" onclick="toggleUserAdmin(${u.id},${u.admin_enabled?0:1})"><i></i></div></td>
+    <td><button class="btn sm danger" onclick="removeUser(${u.id})">Remove</button></td></tr>`).join('');
+}
+async function toggleUserAdmin(id,val){ await fetch(`/api/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({admin_enabled:val})}); loadUsers(); }
+async function removeUser(id){ await fetch(`/api/users/${id}`,{method:'DELETE',headers:authHeaders()}); loadUsers(); }
+function openAddUser(){ document.getElementById('userModal').classList.add('show'); }
+async function addUser(){
+  const username=document.getElementById('uName').value, email=document.getElementById('uEmail').value;
+  const password=document.getElementById('uPass').value||'changeme123';
+  const admin_enabled=document.getElementById('uAdminToggle').classList.contains('on');
+  const r = await fetch('/api/users',{method:'POST',headers:authHeaders(),body:JSON.stringify({username,email,password,admin_enabled})});
+  if(!r.ok){ const d=await r.json(); alert(d.error); return; }
+  closeModal('userModal'); loadUsers();
+}
+
+// ---- create server modal ----
+window._newType='mc';
+function openCreate(){ document.getElementById('createModal').classList.add('show'); }
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function setType(t){
+  window._newType=t;
+  document.getElementById('tMc').classList.toggle('sel',t==='mc');
+  document.getElementById('tNode').classList.toggle('sel',t==='node');
+  document.getElementById('mcOpts').classList.toggle('hidden',t!=='mc');
+  document.getElementById('mcVerOpt').classList.toggle('hidden',t!=='mc');
+  document.getElementById('nodeOpts').classList.toggle('hidden',t!=='node');
+  document.getElementById('repoOpt').classList.toggle('hidden',t!=='node');
+  document.getElementById('cmdOpt').classList.toggle('hidden',t!=='node');
+}
+async function createServer(){
+  const t = window._newType;
+  const btn = document.getElementById('deployBtn'); btn.disabled=true; btn.textContent='Deploying…';
+  const body = {
+    name: document.getElementById('fName').value || ('server-'+Date.now()),
+    type: t,
+    software: t==='mc'?document.getElementById('fSoftware').value:null,
+    version: t==='mc'?document.getElementById('fMcVer').value:document.getElementById('fNodeVer').value,
+    repo: t==='node'?document.getElementById('fRepo').value:null,
+    start_cmd: t==='node'?document.getElementById('fStartCmd').value:null,
+    cpu:+document.getElementById('fCpu').value, ram:+document.getElementById('fRam').value, disk:+document.getElementById('fDisk').value
+  };
+  const r = await fetch('/api/servers',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
+  const d = await r.json();
+  btn.disabled=false; btn.textContent='Deploy Server';
+  if(!r.ok){ alert(d.error); return; }
+  closeModal('createModal');
+  await loadServers();
+}
+
+// ---- console ----
+function openConsole(id,name){
+  consoleServerId = id;
+  document.getElementById('consoleTitle').textContent = 'Console — '+name;
+  document.getElementById('console').innerHTML='';
+  document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
+  document.getElementById('page-console').classList.remove('hidden');
+  if(consoleWs) consoleWs.close();
+  const proto = location.protocol==='https:'?'wss':'ws';
+  consoleWs = new WebSocket(`${proto}://${location.host}/ws/console?id=${id}&token=${token}`);
+  consoleWs.onmessage = (ev)=>{
+    const msg = JSON.parse(ev.data);
+    if(msg.type==='log'){ const c=document.getElementById('console'); c.textContent += msg.data; c.scrollTop = c.scrollHeight; }
+  };
+}
+function sendCmd(){
+  const inp = document.getElementById('cmdInput');
+  if(!inp.value || !consoleWs) return;
+  consoleWs.send(JSON.stringify({type:'cmd',data:inp.value}));
+  inp.value='';
+}
+document.getElementById('cmdInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') sendCmd(); });
+
+if(token){
+  fetch('/api/me',{headers:authHeaders()}).then(r=>r.ok?r.json():Promise.reject()).then(u=>{ me=u; boot(); }).catch(()=>{ localStorage.removeItem('panelfy_token'); });
+}
+</script>
+</body>
+</html>
