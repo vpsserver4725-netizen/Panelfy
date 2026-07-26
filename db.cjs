@@ -24,17 +24,33 @@ CREATE TABLE IF NOT EXISTS servers (
   version TEXT,              -- mc version or node version
   repo TEXT,                 -- git repo for node servers
   start_cmd TEXT,            -- npm start override
-  cpu INTEGER DEFAULT 1,
-  ram INTEGER DEFAULT 2,
+  cpu REAL DEFAULT 1,
+  ram REAL DEFAULT 2,
   disk INTEGER DEFAULT 10,
   port INTEGER,
   container_id TEXT,
   status TEXT DEFAULT 'off',
   playit_active INTEGER DEFAULT 0,
   playit_ip TEXT,
+  rcon_port INTEGER,
+  rcon_password TEXT,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT
+);
 `);
+
+function getSetting(key, fallback) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row ? row.value : fallback;
+}
+function setSetting(key, value) {
+  db.prepare('INSERT INTO settings (key,value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, String(value));
+}
+// default: playit tunnels enabled panel-wide
+if (getSetting('playit_enabled', null) === null) setSetting('playit_enabled', '1');
 
 // seed default owner/admin if no users exist
 const count = db.prepare('SELECT COUNT(*) c FROM users').get().c;
@@ -46,3 +62,5 @@ if (count === 0) {
 }
 
 module.exports = db;
+module.exports.getSetting = getSetting;
+module.exports.setSetting = setSetting;

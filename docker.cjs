@@ -58,6 +58,8 @@ async function createMcContainer(server) {
   const image = 'itzg/minecraft-server:latest';
   await pullIfMissing(image);
   const { cpu, ram } = await clampResources(server.cpu, server.ram);
+  const rconPassword = server.rcon_password || Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+  const rconPort = server.rcon_port || (35575 + (server.id % 9000));
   const container = await docker.createContainer({
     Image: image,
     name: `panelfy_${server.id}_${server.name}`,
@@ -66,19 +68,25 @@ async function createMcContainer(server) {
       `TYPE=${MC_TYPE_MAP[server.software] || 'PAPER'}`,
       `VERSION=${server.version}`,
       `MEMORY=${Math.max(1, Math.floor(ram))}G`,
-      'ONLINE_MODE=TRUE'
+      'ONLINE_MODE=TRUE',
+      'ENABLE_RCON=true',
+      `RCON_PASSWORD=${rconPassword}`,
+      'RCON_PORT=25575'
     ],
     HostConfig: {
       Memory: Math.floor(ram * 1024 * 1024 * 1024),
       NanoCpus: Math.floor(cpu * 1e9),
-      PortBindings: { '25565/tcp': [{ HostPort: String(server.port) }] },
+      PortBindings: {
+        '25565/tcp': [{ HostPort: String(server.port) }],
+        '25575/tcp': [{ HostPort: String(rconPort) }]
+      },
       RestartPolicy: { Name: 'unless-stopped' }
     },
-    ExposedPorts: { '25565/tcp': {} },
+    ExposedPorts: { '25565/tcp': {}, '25575/tcp': {} },
     Tty: true,
     OpenStdin: true
   });
-  return container.id;
+  return { containerId: container.id, rconPort, rconPassword };
 }
 
 async function createNodeContainer(server) {
@@ -130,8 +138,26 @@ async function sendCommand(id, cmd) {
   stream.end();
 }
 
+// Run a shell command inside a container and collect its stdout/stderr (used by the file manager)
+async function execInContainer(id, cmd) {
+  const container = docker.getContainer(id);
+  const exec = await container.exec({ Cmd: ['sh', '-c', cmd], AttachStdout: true, AttachStderr: true });
+  return new Promise((resolve, reject) => {
+    exec.start({}, (err, stream) => {
+      if (err) return reject(err);
+      let out = '';
+      docker.modem.demuxStream(stream,
+        { write: (c) => { out += c.toString('utf8'); } },
+        { write: (c) => { out += c.toString('utf8'); } }
+      );
+      stream.on('end', () => resolve(out));
+      stream.on('error', reject);
+    });
+  });
+}
+
 module.exports = {
   docker, nextPort, createMcContainer, createNodeContainer,
   startContainer, stopContainer, removeContainer, streamLogs, sendCommand,
-  getSystemInfo, clampResources
+  getSystemInfo, clampResources, execInContainer
 };

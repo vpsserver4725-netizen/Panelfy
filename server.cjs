@@ -11,6 +11,8 @@ const db = require('./db.cjs');
 const dock = require('./docker.cjs');
 const playit = require('./playit.cjs');
 const { getMcVersions } = require('./mcversions.cjs');
+const { rconCommand } = require('./rcon.cjs');
+const { searchPlugins, getVersionForServer } = require('./plugins.cjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'panelfy-dev-secret-change-me';
 const PORT = process.env.PORT || 8080;
@@ -61,6 +63,15 @@ app.get('/api/mc-versions', auth, async (req, res) => {
   res.json(await getMcVersions());
 });
 
+// ---------- panel-wide settings ----------
+app.get('/api/settings', auth, (req, res) => {
+  res.json({ playit_enabled: db.getSetting('playit_enabled', '1') === '1' });
+});
+app.patch('/api/settings', auth, requireAdmin, (req, res) => {
+  if (req.body.playit_enabled !== undefined) db.setSetting('playit_enabled', req.body.playit_enabled ? '1' : '0');
+  res.json({ ok: true });
+});
+
 // ---------- servers ----------
 app.get('/api/servers', auth, (req, res) => {
   const rows = req.user.admin_enabled
@@ -87,9 +98,14 @@ app.post('/api/servers', auth, async (req, res) => {
     );
     const server = db.prepare('SELECT * FROM servers WHERE id = ?').get(info.lastInsertRowid);
 
-    const containerId = b.type === 'mc'
-      ? await dock.createMcContainer(server)
-      : await dock.createNodeContainer(server);
+    let containerId;
+    if (b.type === 'mc') {
+      const mc = await dock.createMcContainer(server);
+      containerId = mc.containerId;
+      db.prepare('UPDATE servers SET rcon_port = ?, rcon_password = ? WHERE id = ?').run(mc.rconPort, mc.rconPassword, server.id);
+    } else {
+      containerId = await dock.createNodeContainer(server);
+    }
 
     await dock.startContainer(containerId);
     db.prepare('UPDATE servers SET container_id = ?, status = ? WHERE id = ?').run(containerId, 'on', server.id);
@@ -145,6 +161,9 @@ app.post('/api/servers/:id/command', auth, async (req, res) => {
 // reconnects silently using the saved secret and returns the tunnel ip directly.
 app.post('/api/servers/:id/playit/toggle', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (db.getSetting('playit_enabled', '1') !== '1') {
+    return res.status(403).json({ error: 'playit.gg tunnels are disabled panel-wide (Settings → admin only)' });
+  }
   try {
     if (!s.playit_active) {
       const entry = await playit.start(s.id);
@@ -204,7 +223,141 @@ app.delete('/api/users/:id', auth, requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// ---------- server + websocket console ----------
+// ---------- file manager (runs commands inside the container) ----------
+function safePath(p) {
+  const clean = (p || '.').replace(/\.\./g, '').replace(/^\/+/, '');
+  return clean || '.';
+}
+const dataDir = (s) => s.type === 'mc' ? '/data' : '/app';
+
+app.get('/api/servers/:id/files', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const p = safePath(req.query.path);
+  try {
+    const out = await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && ls -lAp --time-style=+%s "${p}" 2>&1`);
+    const lines = out.trim().split('\n').filter(l => l && !l.startsWith('total'));
+    const entries = lines.map(line => {
+      const parts = line.trim().split(/\s+/);
+      const perms = parts[0], size = parts[4], mtime = parts[5], name = parts.slice(6).join(' ');
+      return { name: name.replace(/\/$/, ''), isDir: name.endsWith('/') || perms.startsWith('d'), size: +size || 0, mtime: +mtime || 0 };
+    }).filter(e => e.name && e.name !== '.' && e.name !== '..');
+    res.json({ path: p, entries });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/servers/:id/files/read', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const p = safePath(req.query.path);
+  try {
+    const size = await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && wc -c < "${p}" 2>&1`);
+    if (parseInt(size) > 2_000_000) return res.status(413).json({ error: 'File too large to edit in-browser (2MB limit)' });
+    const content = await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && cat "${p}"`);
+    res.json({ path: p, content });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/servers/:id/files/write', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const p = safePath(req.body.path);
+  const b64 = Buffer.from(req.body.content || '', 'utf8').toString('base64');
+  try {
+    await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && echo '${b64}' | base64 -d > "${p}"`);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/servers/:id/files/mkdir', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const p = safePath(req.body.path);
+  try { await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && mkdir -p "${p}"`); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/servers/:id/files', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const p = safePath(req.query.path);
+  if (!p || p === '.') return res.status(400).json({ error: 'Refusing to delete root' });
+  try { await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && rm -rf "${p}"`); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---------- player manager (RCON, Minecraft servers only) ----------
+app.get('/api/servers/:id/players', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
+  if (s.status !== 'on') return res.json({ online: [], raw: 'Server is offline' });
+  try {
+    const raw = await rconCommand('127.0.0.1', s.rcon_port, s.rcon_password, 'list');
+    const match = raw.match(/:\s*(.*)$/);
+    const online = match && match[1].trim() ? match[1].split(',').map(n => n.trim()).filter(Boolean) : [];
+    res.json({ online, raw });
+  } catch (e) { res.status(500).json({ error: 'RCON error: ' + e.message }); }
+});
+
+app.post('/api/servers/:id/players/action', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
+  const { action, player } = req.body;
+  const cmds = {
+    kick: `kick ${player}`, ban: `ban ${player}`, pardon: `pardon ${player}`,
+    op: `op ${player}`, deop: `deop ${player}`,
+    whitelist_add: `whitelist add ${player}`, whitelist_remove: `whitelist remove ${player}`
+  };
+  if (!cmds[action]) return res.status(400).json({ error: 'Unknown action' });
+  try {
+    const raw = await rconCommand('127.0.0.1', s.rcon_port, s.rcon_password, cmds[action]);
+    res.json({ ok: true, raw });
+  } catch (e) { res.status(500).json({ error: 'RCON error: ' + e.message }); }
+});
+
+// ---------- plugin installer (Modrinth) ----------
+app.get('/api/servers/:id/plugins/search', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  try { res.json(await searchPlugins(req.query.q, (s.software || 'paper').toLowerCase())); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/servers/:id/plugins/install', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
+  try {
+    const { downloadUrl, filename } = await getVersionForServer(req.body.projectId, s.version, s.software);
+    await dock.execInContainer(s.container_id, `mkdir -p /data/plugins && wget -q -O "/data/plugins/${filename}" "${downloadUrl}"`);
+    res.json({ ok: true, filename, note: 'Installed — restart the server to load it.' });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---------- version / software changer ----------
+// Recreates the container with new software/version/resources; data volume-less setups
+// mean the world/app files live in the old container until first boot of the new one
+// re-pulls, so this is intended for pre-launch or fresh reconfiguration.
+app.patch('/api/servers/:id', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const { software, version, cpu, ram } = req.body;
+  try {
+    await dock.stopContainer(s.container_id);
+    await dock.removeContainer(s.container_id);
+    const updated = {
+      ...s,
+      software: software || s.software, version: version || s.version,
+      cpu: cpu || s.cpu, ram: ram || s.ram
+    };
+    let containerId;
+    if (s.type === 'mc') {
+      const mc = await dock.createMcContainer(updated);
+      containerId = mc.containerId;
+      db.prepare('UPDATE servers SET rcon_port = ?, rcon_password = ? WHERE id = ?').run(mc.rconPort, mc.rconPassword, s.id);
+    } else {
+      containerId = await dock.createNodeContainer(updated);
+    }
+    await dock.startContainer(containerId);
+    db.prepare('UPDATE servers SET software=?, version=?, cpu=?, ram=?, container_id=?, status=? WHERE id=?')
+      .run(updated.software, updated.version, updated.cpu, updated.ram, containerId, 'on', s.id);
+    res.json(db.prepare('SELECT * FROM servers WHERE id = ?').get(s.id));
+  } catch (e) { res.status(500).json({ error: 'Failed to reconfigure: ' + (e.json?.message || e.message) }); }
+});
+
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws/console' });
 

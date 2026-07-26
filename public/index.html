@@ -151,6 +151,14 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .toggle.on{background:#0f2a1c}.toggle.on i{left:19px;background:var(--ok)}
 
 .playit-ip{font-family:monospace;background:#0a0a0f;padding:9px 13px;border-radius:9px;display:inline-block;margin:10px 0;color:var(--teal)}
+.dtab{padding:10px 16px;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent}
+.dtab.sel{color:var(--teal);border-bottom-color:var(--accent)}
+.fileRow{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+.fileRow:last-child{border-bottom:none}
+.fileRow:hover{color:var(--teal)}
+.pluginRow{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.pluginRow:last-child{border-bottom:none}
+.pluginRow .pi{width:36px;height:36px;border-radius:8px;background:var(--panel2);flex-shrink:0}
 #console{background:#000;color:#4ade80;font-family:'Consolas',monospace;font-size:12px;padding:15px;height:360px;overflow-y:auto;border-radius:10px;white-space:pre-wrap}
 #cmdRow{display:flex;gap:8px;margin-top:10px}
 #cmdRow input{flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;font-family:monospace}
@@ -169,7 +177,7 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
   <svg class="cactus" style="right:10%;animation-delay:2s" width="50" height="140" viewBox="0 0 50 140"><rect x="20" y="20" width="10" height="120" rx="5" fill="#241539"/><rect x="0" y="50" width="10" height="45" rx="5" fill="#241539"/><rect x="40" y="60" width="10" height="40" rx="5" fill="#241539"/></svg>
 
   <div id="loginBox">
-    <div class="logo">P</div>
+    <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 16L8 9L12 14L16 7L21 16" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="6" r="2.2" fill="white"/></svg></div>
     <h2>Panelfy Login</h2>
     <p>Welcome to the nature</p>
     <div class="field"><label>Username</label><input id="lUser" value="admin" autocomplete="username"></div>
@@ -197,7 +205,7 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 <!-- ===== APP ===== -->
 <div id="app" class="hidden" style="display:flex;width:100%">
   <div id="side">
-    <div id="brand"><div class="logo">P</div><span>Panelfy</span></div>
+    <div id="brand"><div class="logo"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 16L8 9L12 14L16 7L21 16" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="6" r="2.2" fill="white"/></svg></div><span>Panelfy</span></div>
     <nav>
       <div class="grp">Overview</div>
       <a data-p="dash" class="active">◆ Dashboard</a>
@@ -205,6 +213,7 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
       <a data-p="playit">⇄ playit.gg Tunnels</a>
       <div class="grp" id="adminGrp">Administration</div>
       <a data-p="users" id="navUsers">◎ Users</a>
+      <a data-p="settings" id="navSettings">⚙ Settings</a>
     </nav>
     <div id="userbox">
       <div class="av" id="avLetter">?</div>
@@ -249,14 +258,100 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
         </div>
       </div>
 
-      <div id="page-console" class="hidden">
+      <div id="page-settings" class="hidden">
         <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <b id="consoleTitle">Console</b>
-            <button class="btn sm ghost" onclick="showPage('servers')">← Back</button>
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div><b style="font-size:14px">⇄ playit.gg Tunnels (panel-wide)</b><div style="color:var(--sub);font-size:12px;margin-top:3px">Turn off to hide and block the playit.gg tunnel feature for every user</div></div>
+            <div class="toggle" id="globalPlayitToggle" onclick="toggleGlobalPlayit()"><i></i></div>
           </div>
+        </div>
+      </div>
+
+      <div id="page-detail" class="hidden">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div><h2 id="detailName" style="font-size:19px;font-weight:800"></h2><div id="detailMeta" style="color:var(--sub);font-size:12px;margin-top:2px"></div></div>
+          <button class="btn sm ghost" onclick="showPage('servers')">← Back</button>
+        </div>
+        <div style="display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:18px">
+          <div class="dtab sel" data-t="console" onclick="switchDetailTab('console')">Console</div>
+          <div class="dtab" data-t="players" onclick="switchDetailTab('players')">Players</div>
+          <div class="dtab" data-t="plugins" onclick="switchDetailTab('plugins')">Plugins</div>
+          <div class="dtab" data-t="files" onclick="switchDetailTab('files')">Files</div>
+          <div class="dtab" data-t="dsettings" onclick="switchDetailTab('dsettings')">Settings</div>
+        </div>
+
+        <div id="dtab-console">
           <div id="console"></div>
           <div id="cmdRow"><input id="cmdInput" placeholder="Type a command and press Enter"><button class="btn sm" onclick="sendCmd()">Send</button></div>
+        </div>
+
+        <div id="dtab-players" class="hidden">
+          <div class="card" style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Online Players</b><button class="btn sm ghost" onclick="loadPlayers()">Refresh</button></div>
+            <div id="playersOnline" style="font-size:13px;color:var(--sub)">—</div>
+          </div>
+          <div class="card">
+            <b style="font-size:13px">Manage Player</b>
+            <div class="row2" style="margin-top:12px">
+              <input id="playerName" placeholder="Player username" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+              <select id="playerAction" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+                <option value="kick">Kick</option><option value="ban">Ban</option><option value="pardon">Unban</option>
+                <option value="op">Op</option><option value="deop">Deop</option>
+                <option value="whitelist_add">Whitelist Add</option><option value="whitelist_remove">Whitelist Remove</option>
+              </select>
+            </div>
+            <button class="btn sm" style="margin-top:12px" onclick="doPlayerAction()">Run</button>
+            <div id="playerActionResult" class="hint" style="margin-top:8px"></div>
+          </div>
+        </div>
+
+        <div id="dtab-plugins" class="hidden">
+          <div class="card">
+            <div style="display:flex;gap:8px">
+              <input id="pluginQuery" placeholder="Search Modrinth plugins (e.g. LuckPerms, EssentialsX)" style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+              <button class="btn sm" onclick="searchPluginsUI()">Search</button>
+            </div>
+            <div id="pluginResults" style="margin-top:14px"></div>
+          </div>
+        </div>
+
+        <div id="dtab-files" class="hidden">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div id="filesBreadcrumb" style="font-size:12px;color:var(--sub);font-family:monospace"></div>
+              <button class="btn sm ghost" onclick="filesMkdir()">+ Folder</button>
+            </div>
+            <div id="filesList"></div>
+          </div>
+          <div class="card hidden" id="fileEditorCard" style="margin-top:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b id="fileEditorName" style="font-size:13px"></b><div><button class="btn sm" onclick="saveFile()">Save</button> <button class="btn sm ghost" onclick="closeFileEditor()">Close</button></div></div>
+            <textarea id="fileEditorContent" style="width:100%;height:280px;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:12px;font-family:monospace;font-size:12px"></textarea>
+          </div>
+        </div>
+
+        <div id="dtab-dsettings" class="hidden">
+          <div class="card" id="mcOnlyFields">
+            <b style="font-size:13px">Software / Version</b>
+            <div class="row2" style="margin-top:10px">
+              <select id="dSoftware"></select>
+              <select id="dVersion"></select>
+            </div>
+            <div class="hint" style="margin-top:8px">Changing this recreates the container — your current save data is not automatically migrated.</div>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <b style="font-size:13px">Resources</b>
+            <div class="row2" style="margin-top:10px">
+              <div><label style="font-size:11px;color:var(--sub)">CPU cores</label><input id="dCpu" type="number" step="0.1" style="width:100%;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;margin-top:5px"></div>
+              <div><label style="font-size:11px;color:var(--sub)">RAM (GB)</label><input id="dRam" type="number" style="width:100%;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;margin-top:5px"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:14px" id="dPlayitCard">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div><b style="font-size:13px">⇄ playit.gg tunnel for this server</b><div class="hint" id="dPlayitIp"></div></div>
+              <div class="toggle" id="dPlayitToggle" onclick="togglePlayitFromDetail()"><i></i></div>
+            </div>
+          </div>
+          <button class="btn" style="margin-top:16px" onclick="saveServerSettings()">Save & Recreate Container</button>
         </div>
       </div>
     </div>
@@ -346,6 +441,16 @@ let sysInfo = { cpus: 2, memBytes: 4*1024**3 };
 let mcVersionsCache = [];
 let consoleWs = null;
 let fCpuAuto = true;
+let playitEnabled = true;
+let currentDetailServer = null;
+let currentFilesPath = '.';
+let currentEditingFile = null;
+
+async function toggleGlobalPlayit(){
+  playitEnabled = !playitEnabled;
+  document.getElementById('globalPlayitToggle').classList.toggle('on', playitEnabled);
+  await fetch('/api/settings',{method:'PATCH',headers:authHeaders(),body:JSON.stringify({playit_enabled:playitEnabled})});
+}
 
 const SOFTWARES = [
   {n:'Paper',i:'⚡',d:'Performance Vanilla'},{n:'Spigot',i:'🔧',d:'Classic Bukkit fork'},
@@ -400,13 +505,19 @@ async function boot(){
   document.getElementById('whoName').textContent = me.username;
   document.getElementById('avLetter').textContent = me.username[0].toUpperCase();
   document.getElementById('roleLabel').textContent = (me.admin_enabled?'Admin • Access ON':'User');
-  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('adminGrp').style.display='none'; document.getElementById('ownerField').classList.add('hidden'); }
+  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('navSettings').style.display='none'; document.getElementById('adminGrp').style.display='none'; document.getElementById('ownerField').classList.add('hidden'); }
   else { document.getElementById('ownerField').classList.remove('hidden'); loadOwners(); }
 
   try{ sysInfo = await (await fetch('/api/system/info',{headers:authHeaders()})).json(); }catch(_){}
   document.getElementById('statCpuHost').textContent = sysInfo.cpus;
   document.getElementById('statRamHost').textContent = (sysInfo.memBytes/1024**3).toFixed(0)+'GB';
   onRamChange();
+
+  try{
+    const st = await (await fetch('/api/settings',{headers:authHeaders()})).json();
+    playitEnabled = !!st.playit_enabled;
+    document.getElementById('globalPlayitToggle').classList.toggle('on', playitEnabled);
+  }catch(_){}
 
   try{ mcVersionsCache = await (await fetch('/api/mc-versions',{headers:authHeaders()})).json(); }catch(_){ mcVersionsCache=['1.21.4','1.20.6','1.8.9']; }
   document.getElementById('fMcVer').innerHTML = ['latest',...mcVersionsCache].map(v=>`<option>${v}</option>`).join('');
@@ -437,7 +548,7 @@ document.querySelectorAll('#side nav a').forEach(a=>a.addEventListener('click',(
 function showPage(p){
   document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
   document.getElementById('page-'+p).classList.remove('hidden');
-  const titles={dash:['Dashboard','Monitor your infrastructure and activity'],servers:['My Servers','Manage your deployments'],playit:['playit.gg Tunnels','Public IPs for your Minecraft servers'],users:['Users','Manage panel accounts and admin access'],console:['Console','']};
+  const titles={dash:['Dashboard','Monitor your infrastructure and activity'],servers:['My Servers','Manage your deployments'],playit:['playit.gg Tunnels','Public IPs for your Minecraft servers'],users:['Users','Manage panel accounts and admin access'],settings:['Settings','Panel-wide configuration'],detail:['Server','']};
   document.getElementById('pgTitle').textContent = titles[p][0];
   document.getElementById('pgSub').textContent = titles[p][1];
   if(p==='users') loadUsers();
@@ -448,7 +559,7 @@ function svMeta(s){ return s.type==='mc' ? `${s.software} • ${s.version} • $
 function svCardHTML(s){
   return `<div class="svcard">
     <div class="ic">${svIcon(s)}</div>
-    <div class="body"><div class="name" onclick="openConsole(${s.id},'${s.name}')"><span class="dot ${s.status==='on'?'on':'off'}"></span>${s.name}</div><div class="meta">${svMeta(s)}</div></div>
+    <div class="body"><div class="name" onclick="openServerDetail(${s.id})"><span class="dot ${s.status==='on'?'on':'off'}"></span>${s.name}</div><div class="meta">${svMeta(s)}</div></div>
     <span class="tag ${s.status==='on'?'on':'off'}">${s.status==='on'?'Running':'Stopped'}</span>
     <button class="btn sm ghost" onclick="toggleServer(${s.id},'${s.status}')">${s.status==='on'?'Stop':'Start'}</button>
     <button class="btn sm danger" onclick="deleteServer(${s.id})">Delete</button>
@@ -549,14 +660,32 @@ async function createServer(){
   await loadServers();
 }
 
-function openConsole(id,name){
-  document.getElementById('consoleTitle').textContent = 'Console — '+name;
-  document.getElementById('console').innerHTML='';
+function openServerDetail(id){
+  currentDetailServer = servers.find(s=>s.id===id);
+  if(!currentDetailServer) return;
+  document.getElementById('detailName').textContent = currentDetailServer.name;
+  document.getElementById('detailMeta').textContent = svMeta(currentDetailServer);
+  document.querySelectorAll('#side nav a').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
-  document.getElementById('page-console').classList.remove('hidden');
+  document.getElementById('page-detail').classList.remove('hidden');
+  document.getElementById('mcOnlyFields').style.display = currentDetailServer.type==='mc' ? '' : 'none';
+  document.getElementById('dPlayitCard').style.display = currentDetailServer.type==='mc' ? '' : 'none';
+  switchDetailTab('console');
+}
+function switchDetailTab(t){
+  document.querySelectorAll('.dtab').forEach(d=>d.classList.toggle('sel', d.dataset.t===t));
+  ['console','players','plugins','files','dsettings'].forEach(x=>document.getElementById('dtab-'+x).classList.toggle('hidden', x!==t));
+  if(t==='console') startConsole();
+  if(t==='players') loadPlayers();
+  if(t==='files'){ currentFilesPath='.'; loadFiles(); }
+  if(t==='dsettings') loadDetailSettings();
+}
+
+function startConsole(){
+  document.getElementById('console').innerHTML='';
   if(consoleWs) consoleWs.close();
   const proto = location.protocol==='https:'?'wss':'ws';
-  consoleWs = new WebSocket(`${proto}://${location.host}/ws/console?id=${id}&token=${token}`);
+  consoleWs = new WebSocket(`${proto}://${location.host}/ws/console?id=${currentDetailServer.id}&token=${token}`);
   consoleWs.onmessage = (ev)=>{
     const msg = JSON.parse(ev.data);
     if(msg.type==='log'){ const c=document.getElementById('console'); c.textContent += msg.data; c.scrollTop = c.scrollHeight; }
@@ -569,6 +698,128 @@ function sendCmd(){
   inp.value='';
 }
 document.getElementById('cmdInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') sendCmd(); });
+
+/* ---- players ---- */
+async function loadPlayers(){
+  const el = document.getElementById('playersOnline');
+  el.textContent = 'Loading…';
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/players`,{headers:authHeaders()});
+  const d = await r.json();
+  if(!r.ok){ el.textContent = d.error; return; }
+  el.textContent = d.online.length ? d.online.join(', ') : 'No players online';
+}
+async function doPlayerAction(){
+  const player = document.getElementById('playerName').value;
+  const action = document.getElementById('playerAction').value;
+  if(!player) return;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/players/action`,{method:'POST',headers:authHeaders(),body:JSON.stringify({action,player})});
+  const d = await r.json();
+  document.getElementById('playerActionResult').textContent = r.ok ? (d.raw || 'Done') : d.error;
+  if(r.ok) loadPlayers();
+}
+
+/* ---- plugins ---- */
+async function searchPluginsUI(){
+  const q = document.getElementById('pluginQuery').value;
+  const box = document.getElementById('pluginResults');
+  box.innerHTML = 'Searching…';
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/search?q=${encodeURIComponent(q)}`,{headers:authHeaders()});
+  const d = await r.json();
+  if(!r.ok){ box.innerHTML = `<div class="hint">${d.error}</div>`; return; }
+  box.innerHTML = d.map(p=>`
+    <div class="pluginRow">
+      <div class="pi"></div>
+      <div style="flex:1"><b style="font-size:13px">${p.title}</b><div class="hint">${(p.description||'').slice(0,90)}</div></div>
+      <button class="btn sm" onclick="installPlugin('${p.id}','${p.title.replace(/'/g,"")}')">Install</button>
+    </div>`).join('') || '<div class="hint">No results</div>';
+}
+async function installPlugin(projectId, title){
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({projectId})});
+  const d = await r.json();
+  alert(r.ok ? `Installed ${title} (${d.filename}). ${d.note}` : d.error);
+}
+
+/* ---- files ---- */
+async function loadFiles(){
+  document.getElementById('filesBreadcrumb').textContent = '/'+ (currentFilesPath==='.' ? '' : currentFilesPath);
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/files?path=${encodeURIComponent(currentFilesPath)}`,{headers:authHeaders()});
+  const d = await r.json();
+  const list = document.getElementById('filesList');
+  if(!r.ok){ list.innerHTML = `<div class="hint">${d.error}</div>`; return; }
+  let rows = '';
+  if(currentFilesPath !== '.') rows += `<div class="fileRow" onclick="filesUp()">.. (up)</div>`;
+  rows += d.entries.map(e=>{
+    const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + e.name;
+    return `<div class="fileRow" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}">
+      ${e.isDir?'📁':'📄'} ${e.name} ${!e.isDir?`<span class="hint" style="margin-left:auto">${(e.size/1024).toFixed(1)}KB</span>`:''}
+      ${!e.isDir?`<button class="btn sm danger" style="margin-left:8px" onclick="event.stopPropagation();deleteFile('${p}')">Del</button>`:''}
+    </div>`;
+  }).join('');
+  list.innerHTML = rows || '<div class="hint">Empty folder</div>';
+}
+function filesOpen(p){ currentFilesPath = p; loadFiles(); }
+function filesUp(){ const parts = currentFilesPath.split('/'); parts.pop(); currentFilesPath = parts.join('/') || '.'; loadFiles(); }
+async function filesMkdir(){
+  const name = prompt('New folder name:');
+  if(!name) return;
+  const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + name;
+  await fetch(`/api/servers/${currentDetailServer.id}/files/mkdir`,{method:'POST',headers:authHeaders(),body:JSON.stringify({path:p})});
+  loadFiles();
+}
+async function deleteFile(p){
+  if(!confirm('Delete '+p+'?')) return;
+  await fetch(`/api/servers/${currentDetailServer.id}/files?path=${encodeURIComponent(p)}`,{method:'DELETE',headers:authHeaders()});
+  loadFiles();
+}
+async function openFile(p){
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/files/read?path=${encodeURIComponent(p)}`,{headers:authHeaders()});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  currentEditingFile = p;
+  document.getElementById('fileEditorName').textContent = p;
+  document.getElementById('fileEditorContent').value = d.content;
+  document.getElementById('fileEditorCard').classList.remove('hidden');
+}
+async function saveFile(){
+  const content = document.getElementById('fileEditorContent').value;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/files/write`,{method:'POST',headers:authHeaders(),body:JSON.stringify({path:currentEditingFile,content})});
+  const d = await r.json();
+  alert(r.ok ? 'Saved' : d.error);
+}
+function closeFileEditor(){ document.getElementById('fileEditorCard').classList.add('hidden'); currentEditingFile=null; }
+
+/* ---- per-server settings ---- */
+async function loadDetailSettings(){
+  const s = currentDetailServer;
+  if(s.type==='mc'){
+    document.getElementById('dSoftware').innerHTML = SOFTWARES.map(sw=>`<option ${sw.n===s.software?'selected':''}>${sw.n}</option>`).join('');
+    document.getElementById('dVersion').innerHTML = ['latest',...mcVersionsCache].map(v=>`<option ${v===s.version?'selected':''}>${v}</option>`).join('');
+  }
+  document.getElementById('dCpu').value = (+s.cpu).toFixed(2);
+  document.getElementById('dRam').value = s.ram;
+  document.getElementById('dPlayitToggle').classList.toggle('on', !!s.playit_active);
+  document.getElementById('dPlayitIp').textContent = s.playit_active ? (s.playit_ip || 'Connecting…') : 'Tunnel off';
+  if(!playitEnabled){ document.getElementById('dPlayitCard').style.opacity='.5'; document.getElementById('dPlayitCard').title='Disabled panel-wide in Settings'; }
+}
+async function togglePlayitFromDetail(){
+  if(!playitEnabled){ alert('playit.gg tunnels are disabled panel-wide. An admin can turn them on in Settings.'); return; }
+  await togglePlayit(currentDetailServer.id);
+  currentDetailServer = servers.find(s=>s.id===currentDetailServer.id);
+  loadDetailSettings();
+}
+async function saveServerSettings(){
+  const s = currentDetailServer;
+  const body = { cpu:+document.getElementById('dCpu').value, ram:+document.getElementById('dRam').value };
+  if(s.type==='mc'){ body.software = document.getElementById('dSoftware').value; body.version = document.getElementById('dVersion').value; }
+  if(!confirm('This recreates the container (brief downtime). Continue?')) return;
+  const r = await fetch(`/api/servers/${s.id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify(body)});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  await loadServers();
+  currentDetailServer = servers.find(x=>x.id===s.id);
+  document.getElementById('detailMeta').textContent = svMeta(currentDetailServer);
+  alert('Server reconfigured.');
+}
 
 /* ===== onboarding tour ===== */
 const TOUR_STEPS = [
