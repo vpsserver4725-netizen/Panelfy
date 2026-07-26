@@ -54,12 +54,24 @@ async function pullIfMissing(image) {
 }
 
 
-async function createMcContainer(server) {
+async function createMcContainer(server, allocations = []) {
   const image = 'itzg/minecraft-server:latest';
   await pullIfMissing(image);
   const { cpu, ram } = await clampResources(server.cpu, server.ram);
   const rconPassword = server.rcon_password || Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const rconPort = server.rcon_port || (35575 + (server.id % 9000));
+
+  const portBindings = {
+    '25565/tcp': [{ HostPort: String(server.port) }],
+    '25575/tcp': [{ HostPort: String(rconPort) }]
+  };
+  const exposed = { '25565/tcp': {}, '25575/tcp': {} };
+  allocations.forEach(a => {
+    const key = `${a.container_port}/${a.protocol || 'tcp'}`;
+    portBindings[key] = [{ HostPort: String(a.host_port) }];
+    exposed[key] = {};
+  });
+
   const container = await docker.createContainer({
     Image: image,
     name: `panelfy_${server.id}_${server.name}`,
@@ -76,20 +88,17 @@ async function createMcContainer(server) {
     HostConfig: {
       Memory: Math.floor(ram * 1024 * 1024 * 1024),
       NanoCpus: Math.floor(cpu * 1e9),
-      PortBindings: {
-        '25565/tcp': [{ HostPort: String(server.port) }],
-        '25575/tcp': [{ HostPort: String(rconPort) }]
-      },
+      PortBindings: portBindings,
       RestartPolicy: { Name: 'unless-stopped' }
     },
-    ExposedPorts: { '25565/tcp': {}, '25575/tcp': {} },
+    ExposedPorts: exposed,
     Tty: true,
     OpenStdin: true
   });
   return { containerId: container.id, rconPort, rconPassword };
 }
 
-async function createNodeContainer(server) {
+async function createNodeContainer(server, allocations = []) {
   const image = `node:${server.version.replace('LTS', '').trim().replace(/\s/g, '')}-alpine`;
   await pullIfMissing(image);
   const startCmd = server.start_cmd || 'npm start';
@@ -97,6 +106,15 @@ async function createNodeContainer(server) {
     ? `apk add --no-cache git >/dev/null && git clone ${server.repo} /app && cd /app && npm install && ${startCmd}`
     : `mkdir -p /app && cd /app && echo "console.log('Panelfy Node server ready. Upload/clone your code.')" > index.js && node index.js`;
   const { cpu, ram } = await clampResources(server.cpu, server.ram);
+
+  const portBindings = { [`${server.port}/tcp`]: [{ HostPort: String(server.port) }] };
+  const exposed = { [`${server.port}/tcp`]: {} };
+  allocations.forEach(a => {
+    const key = `${a.container_port}/${a.protocol || 'tcp'}`;
+    portBindings[key] = [{ HostPort: String(a.host_port) }];
+    exposed[key] = {};
+  });
+
   const container = await docker.createContainer({
     Image: image,
     name: `panelfy_${server.id}_${server.name}`,
@@ -105,10 +123,10 @@ async function createNodeContainer(server) {
     HostConfig: {
       Memory: Math.floor(ram * 1024 * 1024 * 1024),
       NanoCpus: Math.floor(cpu * 1e9),
-      PortBindings: { [`${server.port}/tcp`]: [{ HostPort: String(server.port) }] },
+      PortBindings: portBindings,
       RestartPolicy: { Name: 'unless-stopped' }
     },
-    ExposedPorts: { [`${server.port}/tcp`]: {} },
+    ExposedPorts: exposed,
     Tty: true,
     OpenStdin: true
   });

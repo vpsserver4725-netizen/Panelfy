@@ -68,6 +68,18 @@ ensureColumn('servers', 'rcon_port', 'INTEGER');
 ensureColumn('servers', 'rcon_password', 'TEXT');
 ensureColumn('servers', 'playit_ip', 'TEXT');
 ensureColumn('servers', 'playit_active', 'INTEGER DEFAULT 0');
+ensureColumn('servers', 'ip_alias', 'TEXT');
+
+db.exec(`
+CREATE TABLE IF NOT EXISTS server_allocations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  server_id INTEGER NOT NULL,
+  container_port INTEGER NOT NULL,
+  host_port INTEGER NOT NULL,
+  protocol TEXT DEFAULT 'tcp',
+  note TEXT
+);
+`);
 
 // seed default owner/admin if no users exist
 const count = db.prepare('SELECT COUNT(*) c FROM users').get().c;

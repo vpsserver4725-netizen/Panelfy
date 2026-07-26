@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 8080;
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '8mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- auth helpers ----------
@@ -182,6 +182,14 @@ app.post('/api/servers/:id/stop', auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.post('/api/servers/:id/restart', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  await dock.stopContainer(s.container_id);
+  await dock.startContainer(s.container_id);
+  db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('on', s.id);
+  res.json({ ok: true });
+});
+
 app.delete('/api/servers/:id', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
   if (s.playit_active) playit.stop(s.id);
@@ -307,6 +315,19 @@ app.post('/api/servers/:id/files/write', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// For binary uploads (jars, zips, images) the client sends already-base64 data —
+// no re-encoding here, unlike /files/write which is for plain-text editor saves.
+app.post('/api/servers/:id/files/upload', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const p = safePath(req.body.path);
+  const base64 = (req.body.base64 || '').replace(/^data:[^,]+,/, '');
+  if (!base64) return res.status(400).json({ error: 'No file data received' });
+  try {
+    await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && echo '${base64}' | base64 -d > "${p}"`);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/servers/:id/files/mkdir', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
   const p = safePath(req.body.path);
@@ -368,28 +389,76 @@ app.post('/api/servers/:id/plugins/install', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ---------- version / software changer ----------
-// Recreates the container with new software/version/resources; data volume-less setups
-// mean the world/app files live in the old container until first boot of the new one
-// re-pulls, so this is intended for pre-launch or fresh reconfiguration.
+app.get('/api/servers/:id/stats', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (s.status !== 'on') return res.json({ cpuPct: 0, memMB: 0, running: false });
+  try {
+    const stats = await dock.docker.getContainer(s.container_id).stats({ stream: false });
+    const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
+    const sysDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+    const cores = stats.cpu_stats.online_cpus || (stats.cpu_stats.cpu_usage.percpu_usage || [1]).length;
+    const cpuPct = sysDelta > 0 ? (cpuDelta / sysDelta) * cores * 100 : 0;
+    const memMB = (stats.memory_stats.usage || 0) / (1024 * 1024);
+    res.json({ cpuPct: +cpuPct.toFixed(1), memMB: Math.round(memMB), running: true });
+  } catch (e) { res.json({ cpuPct: 0, memMB: 0, running: false, error: e.message }); }
+});
+
+// ---------- network allocations (extra ports beyond the primary game port) ----------
+app.get('/api/servers/:id/allocations', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  res.json(db.prepare('SELECT * FROM server_allocations WHERE server_id = ?').all(s.id));
+});
+app.post('/api/servers/:id/allocations', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const containerPort = +req.body.container_port;
+  if (!containerPort) return res.status(400).json({ error: 'container_port is required' });
+  const maxHostPort = db.prepare('SELECT MAX(host_port) m FROM server_allocations').get().m;
+  const hostPort = Math.max(maxHostPort ? maxHostPort + 1 : 40000, 40000);
+  const info = db.prepare('INSERT INTO server_allocations (server_id,container_port,host_port,protocol,note) VALUES (?,?,?,?,?)')
+    .run(s.id, containerPort, hostPort, req.body.protocol || 'tcp', req.body.note || '');
+  res.json({ id: info.lastInsertRowid, server_id: s.id, container_port: containerPort, host_port: hostPort, protocol: req.body.protocol || 'tcp', note: req.body.note || '', note2: 'Restart or reconfigure the server for this to take effect.' });
+});
+app.delete('/api/servers/:id/allocations/:allocId', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  db.prepare('DELETE FROM server_allocations WHERE id = ? AND server_id = ?').run(req.params.allocId, s.id);
+  res.json({ ok: true });
+});
+
+// ---------- version / software changer + simple field updates ----------
+// Recreates the container with new software/version/resources/allocations; data
+// volume-less setups mean the world/app files live in the old container until
+// first boot of the new one re-pulls, so this is intended for pre-launch or
+// fresh reconfiguration. ip_alias/owner_id are cosmetic/DB-only and don't recreate.
 app.patch('/api/servers/:id', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
-  const { software, version, cpu, ram } = req.body;
+  const { software, version, cpu, ram, ip_alias, owner_id } = req.body;
+
+  if (ip_alias !== undefined) db.prepare('UPDATE servers SET ip_alias = ? WHERE id = ?').run(ip_alias, s.id);
+  if (owner_id !== undefined) {
+    if (!req.user.admin_enabled) return res.status(403).json({ error: 'Only admins can transfer server ownership' });
+    db.prepare('UPDATE servers SET owner_id = ? WHERE id = ?').run(owner_id, s.id);
+  }
+
+  const needsRecreate = software !== undefined || version !== undefined || cpu !== undefined || ram !== undefined;
+  if (!needsRecreate) return res.json(db.prepare('SELECT * FROM servers WHERE id = ?').get(s.id));
+
+  if (s.status === 'on') return res.status(400).json({ error: 'Stop the server before changing software/version/resources' });
+
   try {
-    await dock.stopContainer(s.container_id);
     await dock.removeContainer(s.container_id);
     const updated = {
       ...s,
       software: software || s.software, version: version || s.version,
       cpu: cpu || s.cpu, ram: ram || s.ram
     };
+    const allocations = db.prepare('SELECT * FROM server_allocations WHERE server_id = ?').all(s.id);
     let containerId;
     if (s.type === 'mc') {
-      const mc = await dock.createMcContainer(updated);
+      const mc = await dock.createMcContainer(updated, allocations);
       containerId = mc.containerId;
       db.prepare('UPDATE servers SET rcon_port = ?, rcon_password = ? WHERE id = ?').run(mc.rconPort, mc.rconPassword, s.id);
     } else {
-      containerId = await dock.createNodeContainer(updated);
+      containerId = await dock.createNodeContainer(updated, allocations);
     }
     await dock.startContainer(containerId);
     db.prepare('UPDATE servers SET software=?, version=?, cpu=?, ram=?, container_id=?, status=? WHERE id=?')

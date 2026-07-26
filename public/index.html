@@ -160,6 +160,37 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .pluginRow{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .pluginRow:last-child{border-bottom:none}
 .pluginRow .pi{width:36px;height:36px;border-radius:8px;background:var(--panel2);flex-shrink:0}
+
+/* ===== server context (dedicated page) ===== */
+#serverContext{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex}
+#scSide{width:236px;background:var(--panel);border-right:1px solid var(--line);flex-shrink:0;padding:18px 12px;overflow-y:auto}
+#scBackRow{font-size:14px;font-weight:700;cursor:pointer;padding:8px 6px;margin-bottom:16px;color:var(--txt)}
+#scBackRow:hover{color:var(--teal)}
+#scStatusCard{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:16px}
+#scStatusLine{font-size:13px;font-weight:700}
+#scStatusLine .dot{width:8px;height:8px;border-radius:50%;background:var(--danger);display:inline-block;margin-right:6px}
+#scStatusLine .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.scLabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);padding:14px 8px 6px;font-weight:700}
+.scItem{display:block;padding:10px 10px;border-radius:9px;color:var(--sub);font-size:13px;font-weight:600;cursor:pointer;margin-bottom:2px}
+.scItem:hover{background:var(--panel2);color:var(--txt)}
+.scItem.sel{background:linear-gradient(90deg,rgba(139,92,246,.18),rgba(236,72,153,.08));color:var(--teal)}
+
+#scMain{flex:1;overflow-y:auto;height:100vh}
+.scTop{padding:20px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:rgba(10,10,15,.9);backdrop-filter:blur(10px);z-index:5}
+.scBody{padding:26px 32px}
+
+.gaugewrap{width:14px;height:14px;border-radius:50%;background:conic-gradient(var(--teal) 0deg,var(--line) 0deg)}
+.gaugenum{font-size:26px;font-weight:800;color:var(--teal);font-family:'Consolas',monospace}
+
+.consolewrap{background:#000;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.consoleheader{display:flex;align-items:center;gap:5px;padding:10px 14px;border-bottom:1px solid #1a1a1a}
+.cdot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.quickcmds{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;border-top:1px solid #1a1a1a}
+.quickcmds button{background:#161616;border:1px solid #2a2a2a;color:var(--sub);padding:5px 12px;border-radius:7px;font-size:11px;font-family:monospace;cursor:pointer}
+.quickcmds button:hover{color:var(--teal);border-color:var(--teal)}
+.quickcmds button.danger{color:var(--danger);border-color:#4a1f1f}
+#cmdRow{padding:12px 14px;border-top:1px solid #1a1a1a;margin:0}
+#console{background:#000;padding:16px;height:280px}
 #console{background:#000;color:#4ade80;font-family:'Consolas',monospace;font-size:12px;padding:15px;height:360px;overflow-y:auto;border-radius:10px;white-space:pre-wrap}
 #cmdRow{display:flex;gap:8px;margin-top:10px}
 #cmdRow input{flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;font-family:monospace}
@@ -334,93 +365,183 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
       </div>
 
 
-      <div id="page-detail" class="hidden">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-          <div><h2 id="detailName" style="font-size:19px;font-weight:800"></h2><div id="detailMeta" style="color:var(--sub);font-size:12px;margin-top:2px"></div></div>
-          <button class="btn sm ghost" onclick="showPage('servers')">← Back</button>
-        </div>
-        <div style="display:flex;gap:6px;border-bottom:1px solid var(--line);margin-bottom:18px">
-          <div class="dtab sel" data-t="console" onclick="switchDetailTab('console')">Console</div>
-          <div class="dtab" data-t="players" onclick="switchDetailTab('players')">Players</div>
-          <div class="dtab" data-t="plugins" onclick="switchDetailTab('plugins')">Plugins</div>
-          <div class="dtab" data-t="files" onclick="switchDetailTab('files')">Files</div>
-          <div class="dtab" data-t="dsettings" onclick="switchDetailTab('dsettings')">Settings</div>
-        </div>
+      <div id="page-detail" class="hidden"></div>
+    </div>
+  </div>
+</div>
 
-        <div id="dtab-console">
+<!-- ===== SERVER CONTEXT (dedicated full-page server manager) ===== -->
+<div id="serverContext" class="hidden">
+  <div id="scSide">
+    <div id="scBackRow" onclick="closeServerDetail()">← <span id="scSideName"></span></div>
+    <div id="scStatusCard">
+      <div id="scStatusLine"><span class="dot" id="scDot"></span><span id="scStatusText">Offline</span> <span style="opacity:.5">•</span> <span id="scPortText"></span></div>
+      <button class="btn sm" id="scStartBtn" onclick="scToggleStart()" style="width:100%;margin-top:12px">▷ Start</button>
+      <button class="btn sm ghost" onclick="scRestart()" style="width:100%;margin-top:8px">↻ Restart</button>
+    </div>
+    <div class="scLabel">MENU</div>
+    <a class="scItem sel" data-t="console" onclick="switchDetailTab('console')">›_ Terminal</a>
+    <a class="scItem" data-t="files" onclick="switchDetailTab('files')">📁 File Manager</a>
+    <a class="scItem" data-t="players" onclick="switchDetailTab('players')">👥 Players</a>
+    <a class="scItem" data-t="plugins" onclick="switchDetailTab('plugins')">🧩 Plugins</a>
+    <a class="scItem" data-t="alloc" onclick="switchDetailTab('alloc')">🌐 Allocation</a>
+    <a class="scItem" data-t="dsettings" onclick="switchDetailTab('dsettings')">⚙ Settings</a>
+    <a class="scItem" data-t="scplayit" onclick="switchDetailTab('scplayit')">⇄ Playit Tunnel</a>
+    <div class="scLabel">NAVIGATION</div>
+    <a class="scItem" onclick="closeServerDetail()">↩ Back to Dashboard</a>
+  </div>
+
+  <div id="scMain">
+    <header class="scTop">
+      <div><h1 id="detailName" style="font-size:19px;font-weight:800"></h1></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="scPortBadge" class="tag" style="background:var(--panel2);color:var(--sub)"></span>
+        <span id="scStatusBadge" class="tag off">Offline</span>
+        <button class="btn sm ghost" id="scStartBtn2" onclick="scToggleStart()">▷ Start</button>
+        <button class="btn sm" onclick="scRestart()" style="background:#3a1f0a">↻ Restart</button>
+      </div>
+    </header>
+
+    <div class="scBody">
+      <div id="dtab-console">
+        <div class="grid g3" style="margin-bottom:16px">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:12px;letter-spacing:.05em;color:var(--sub)">CPU LOAD</b><div class="gaugewrap" id="gaugeCpu"></div></div>
+            <div class="gaugenum" id="cpuLoadNum">0.0%</div><div class="hint">cap <span id="cpuCapNum"></span>%</div>
+          </div>
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:12px;letter-spacing:.05em;color:var(--sub)">MEMORY</b></div>
+            <div class="gaugenum" id="memNum">0 MB</div><div class="hint">cap <span id="memCapNum"></span> MB</div>
+          </div>
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:12px;letter-spacing:.05em;color:var(--sub)">STORAGE</b></div>
+            <div class="gaugenum" id="diskNum">0.0 GB</div><div class="hint">cap <span id="diskCapNum"></span> GB</div>
+          </div>
+        </div>
+        <div class="consolewrap">
+          <div class="consoleheader"><span class="cdot" style="background:#f87171"></span><span class="cdot" style="background:#fbbf24"></span><span class="cdot" style="background:#4ade80"></span><b style="margin-left:8px;font-size:12px">SYSTEM CONSOLE</b><span id="liveDot" style="margin-left:auto;color:var(--ok);font-size:11px">● LIVE</span></div>
           <div id="console"></div>
-          <div id="cmdRow"><input id="cmdInput" placeholder="Type a command and press Enter"><button class="btn sm" onclick="sendCmd()">Send</button></div>
-        </div>
-
-        <div id="dtab-players" class="hidden">
-          <div class="card" style="margin-bottom:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Online Players</b><button class="btn sm ghost" onclick="loadPlayers()">Refresh</button></div>
-            <div id="playersOnline" style="font-size:13px;color:var(--sub)">—</div>
-          </div>
-          <div class="card">
-            <b style="font-size:13px">Manage Player</b>
-            <div class="row2" style="margin-top:12px">
-              <input id="playerName" placeholder="Player username" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
-              <select id="playerAction" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
-                <option value="kick">Kick</option><option value="ban">Ban</option><option value="pardon">Unban</option>
-                <option value="op">Op</option><option value="deop">Deop</option>
-                <option value="whitelist_add">Whitelist Add</option><option value="whitelist_remove">Whitelist Remove</option>
-              </select>
-            </div>
-            <button class="btn sm" style="margin-top:12px" onclick="doPlayerAction()">Run</button>
-            <div id="playerActionResult" class="hint" style="margin-top:8px"></div>
-          </div>
-        </div>
-
-        <div id="dtab-plugins" class="hidden">
-          <div class="card">
-            <div style="display:flex;gap:8px">
-              <input id="pluginQuery" placeholder="Search Modrinth plugins (e.g. LuckPerms, EssentialsX)" style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
-              <button class="btn sm" onclick="searchPluginsUI()">Search</button>
-            </div>
-            <div id="pluginResults" style="margin-top:14px"></div>
-          </div>
-        </div>
-
-        <div id="dtab-files" class="hidden">
-          <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-              <div id="filesBreadcrumb" style="font-size:12px;color:var(--sub);font-family:monospace"></div>
-              <button class="btn sm ghost" onclick="filesMkdir()">+ Folder</button>
-            </div>
-            <div id="filesList"></div>
-          </div>
-          <div class="card hidden" id="fileEditorCard" style="margin-top:14px">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b id="fileEditorName" style="font-size:13px"></b><div><button class="btn sm" onclick="saveFile()">Save</button> <button class="btn sm ghost" onclick="closeFileEditor()">Close</button></div></div>
-            <textarea id="fileEditorContent" style="width:100%;height:280px;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:12px;font-family:monospace;font-size:12px"></textarea>
-          </div>
-        </div>
-
-        <div id="dtab-dsettings" class="hidden">
-          <div class="card" id="mcOnlyFields">
-            <b style="font-size:13px">Software / Version</b>
-            <div class="row2" style="margin-top:10px">
-              <select id="dSoftware"></select>
-              <select id="dVersion"></select>
-            </div>
-            <div class="hint" style="margin-top:8px">Changing this recreates the container — your current save data is not automatically migrated.</div>
-          </div>
-          <div class="card" style="margin-top:14px">
-            <b style="font-size:13px">Resources</b>
-            <div class="row2" style="margin-top:10px">
-              <div><label style="font-size:11px;color:var(--sub)">CPU cores</label><input id="dCpu" type="number" step="0.1" style="width:100%;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;margin-top:5px"></div>
-              <div><label style="font-size:11px;color:var(--sub)">RAM (GB)</label><input id="dRam" type="number" style="width:100%;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;margin-top:5px"></div>
-            </div>
-          </div>
-          <div class="card" style="margin-top:14px" id="dPlayitCard">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <div><b style="font-size:13px">⇄ playit.gg tunnel for this server</b><div class="hint" id="dPlayitIp"></div></div>
-              <div class="toggle" id="dPlayitToggle" onclick="togglePlayitFromDetail()"><i></i></div>
-            </div>
-          </div>
-          <button class="btn" style="margin-top:16px" onclick="saveServerSettings()">Save & Recreate Container</button>
+          <div class="quickcmds" id="quickCmds"></div>
+          <div id="cmdRow"><input id="cmdInput" placeholder="Type a command and press Enter"><button class="btn sm" onclick="sendCmd()">Execute</button></div>
         </div>
       </div>
+
+      <div id="dtab-players" class="hidden">
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b>Online Players</b><button class="btn sm ghost" onclick="loadPlayers()">Refresh</button></div>
+          <div id="playersOnline" style="font-size:13px;color:var(--sub)">—</div>
+        </div>
+        <div class="card">
+          <b style="font-size:13px">Manage Player</b>
+          <div class="row2" style="margin-top:12px">
+            <input id="playerName" placeholder="Player username" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+            <select id="playerAction" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+              <option value="kick">Kick</option><option value="ban">Ban</option><option value="pardon">Unban</option>
+              <option value="op">Op</option><option value="deop">Deop</option>
+              <option value="whitelist_add">Whitelist Add</option><option value="whitelist_remove">Whitelist Remove</option>
+            </select>
+          </div>
+          <button class="btn sm" style="margin-top:12px" onclick="doPlayerAction()">Run</button>
+          <div id="playerActionResult" class="hint" style="margin-top:8px"></div>
+        </div>
+      </div>
+
+      <div id="dtab-plugins" class="hidden">
+        <div class="card">
+          <b style="font-size:17px">Plugin Manager</b>
+          <div class="hint" style="margin-bottom:14px">Search and install plugins from Modrinth.</div>
+          <div style="display:flex;gap:8px">
+            <input id="pluginQuery" placeholder="Search for plugins..." style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+            <button class="btn sm" onclick="searchPluginsUI()">Search</button>
+          </div>
+          <div id="pluginResults" style="margin-top:14px"></div>
+        </div>
+      </div>
+
+      <div id="dtab-files" class="hidden">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px">
+            <div id="filesBreadcrumb" style="font-size:12px;color:var(--sub);font-family:monospace"></div>
+            <input id="filesSearch" placeholder="Search files..." style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:9px 12px;border-radius:9px" oninput="renderFiles()">
+            <input type="file" id="uploadFileInput" class="hidden" onchange="doUploadFile(this.files[0])">
+            <button class="btn sm ghost" onclick="filesMkdir()">+ Folder</button>
+            <button class="btn sm" onclick="uploadFileInput.click()">⬆ Upload</button>
+          </div>
+          <div id="filesList"></div>
+        </div>
+        <div class="card hidden" id="fileEditorCard" style="margin-top:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b id="fileEditorName" style="font-size:13px"></b><div><button class="btn sm" onclick="saveFile()">Save</button> <button class="btn sm ghost" onclick="closeFileEditor()">Close</button></div></div>
+          <textarea id="fileEditorContent" style="width:100%;height:280px;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:12px;font-family:monospace;font-size:12px"></textarea>
+        </div>
+      </div>
+
+      <div id="dtab-alloc" class="hidden">
+        <div class="card" style="margin-bottom:14px">
+          <b style="font-size:14px">🌐 Network Allocation</b>
+          <div class="hint">Primary port is fixed at creation. Add extra ports for plugins that need them (dynmap, geyser, BlueMap, etc). New allocations apply next time the server is reconfigured or recreated.</div>
+        </div>
+        <div class="card" style="padding:0;margin-bottom:14px">
+          <table><thead><tr><th>Container Port</th><th>Host Port</th><th>Protocol</th><th>Note</th><th></th></tr></thead>
+          <tbody id="allocTbody"></tbody></table>
+        </div>
+        <div class="card">
+          <b style="font-size:13px">Add Allocation</b>
+          <div class="row2" style="margin-top:10px">
+            <input id="allocPort" type="number" placeholder="Container port (e.g. 8123)" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+            <input id="allocNote" placeholder="Note (e.g. dynmap)" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+          </div>
+          <button class="btn sm" style="margin-top:12px" onclick="addAllocation()">+ Add Allocation</button>
+        </div>
+      </div>
+
+      <div id="dtab-dsettings" class="hidden">
+        <div class="card" style="border-color:#4a3410;background:rgba(251,191,36,.05)" id="mcOnlyFields">
+          <b style="font-size:14px;color:var(--warn)">⚠ Change Server Version</b>
+          <div class="hint" style="margin-top:6px;line-height:1.6">The server MUST be stopped before changing the version. Do this at your own risk — your world data isn't automatically migrated to a fresh container.</div>
+          <div class="row2" style="margin-top:14px">
+            <div><label style="font-size:11px;color:var(--sub)">Software Type</label><select id="dSoftware" style="width:100%;margin-top:5px"></select></div>
+            <div><label style="font-size:11px;color:var(--sub)">Software Version</label><select id="dVersion" style="width:100%;margin-top:5px"></select></div>
+          </div>
+          <button class="btn sm" style="margin-top:14px" onclick="saveServerSettings()">Update Server</button>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <b style="font-size:13px">Resources</b>
+          <div class="row2" style="margin-top:10px">
+            <div><label style="font-size:11px;color:var(--sub)">CPU cores</label><input id="dCpu" type="number" step="0.1" style="width:100%;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;margin-top:5px"></div>
+            <div><label style="font-size:11px;color:var(--sub)">RAM (GB)</label><input id="dRam" type="number" style="width:100%;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;margin-top:5px"></div>
+          </div>
+          <button class="btn sm ghost" style="margin-top:12px" onclick="saveResourcesOnly()">Save Resources</button>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+          <b style="font-size:14px">🌐 Server IP Alias</b>
+          <div class="hint">Set a custom domain or IP to display on the console page.</div>
+          <div style="display:flex;gap:8px;margin-top:10px"><input id="dIpAlias" placeholder="e.g. play.example.com" style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px"><button class="btn sm" onclick="saveIpAlias()">Save</button></div>
+        </div>
+
+        <div class="card hidden" style="margin-top:14px" id="ownerTransferCard">
+          <b style="font-size:14px">👤 Server Ownership</b>
+          <div class="hint">Transfer ownership of this server to another user.</div>
+          <div style="display:flex;gap:8px;margin-top:10px"><select id="dOwner" style="flex:1"></select><button class="btn sm" onclick="saveOwnerTransfer()">Save</button></div>
+        </div>
+      </div>
+
+      <div id="dtab-scplayit" class="hidden">
+        <div class="card">
+          <b style="font-size:17px">⇄ Playit Tunnel</b>
+          <div class="hint" style="margin-bottom:16px">Generate and manage this server's public playit.gg tunnel.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:16px;border:1px solid var(--line);border-radius:11px">
+            <div><div style="font-size:12px;color:var(--sub)">Tunnel Status</div><b id="scPlayitStatus" style="font-size:15px">Stopped</b></div>
+            <button class="btn sm" onclick="togglePlayitFromDetail()" id="scPlayitBtn">▷ Generate Tunnel</button>
+          </div>
+          <div style="margin-top:16px" id="scPlayitIpBox" class="hidden">
+            <div class="hint">Public address</div>
+            <div class="playit-ip" id="scPlayitIpText"></div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -801,25 +922,75 @@ async function createServer(){
   await loadServers();
 }
 
+let statsInterval = null;
+let filesEntries = [];
+
+const QUICK_CMDS = {
+  mc: [{c:'list',danger:false},{c:'seed',danger:false},{c:'save-all',danger:false},{c:'whitelist',danger:false},{c:'stop',danger:true}],
+  node: [{c:'help',danger:false},{c:'status',danger:false}]
+};
+
 function openServerDetail(id){
   currentDetailServer = servers.find(s=>s.id===id);
   if(!currentDetailServer) return;
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('serverContext').classList.remove('hidden');
   document.getElementById('detailName').textContent = currentDetailServer.name;
-  document.getElementById('detailMeta').textContent = svMeta(currentDetailServer);
-  document.querySelectorAll('#side nav a').forEach(x=>x.classList.remove('active'));
-  document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
-  document.getElementById('page-detail').classList.remove('hidden');
+  document.getElementById('scSideName').textContent = currentDetailServer.name;
   document.getElementById('mcOnlyFields').style.display = currentDetailServer.type==='mc' ? '' : 'none';
-  document.getElementById('dPlayitCard').style.display = currentDetailServer.type==='mc' ? '' : 'none';
+  document.getElementById('scPortText').textContent = currentDetailServer.port;
+  document.getElementById('scPortBadge').textContent = currentDetailServer.port;
+  document.getElementById('cpuCapNum').textContent = Math.round((+currentDetailServer.cpu)*100);
+  document.getElementById('memCapNum').textContent = Math.round(currentDetailServer.ram*1024);
+  document.getElementById('diskCapNum').textContent = currentDetailServer.disk;
+  document.getElementById('quickCmds').innerHTML = (QUICK_CMDS[currentDetailServer.type]||[]).map(q=>`<button class="${q.danger?'danger':''}" onclick="fillCmd('${q.c}')">${q.c}</button>`).join('');
+  updateScStatusUI();
   switchDetailTab('console');
 }
+function closeServerDetail(){
+  document.getElementById('serverContext').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  if(consoleWs){ consoleWs.close(); consoleWs=null; }
+  if(statsInterval){ clearInterval(statsInterval); statsInterval=null; }
+  document.querySelectorAll('#side nav a').forEach(x=>x.classList.remove('active'));
+  document.querySelector('#side nav a[data-p="servers"]').classList.add('active');
+  showPage('servers');
+  loadServers();
+}
+function updateScStatusUI(){
+  const on = currentDetailServer.status==='on';
+  document.getElementById('scDot').classList.toggle('on', on);
+  document.getElementById('scStatusText').textContent = on ? 'Online' : 'Offline';
+  document.getElementById('scStatusBadge').textContent = on ? 'Running' : 'Offline';
+  document.getElementById('scStatusBadge').className = 'tag ' + (on?'on':'off');
+  document.getElementById('scStartBtn').innerHTML = on ? '■ Stop' : '▷ Start';
+  document.getElementById('scStartBtn2').innerHTML = on ? '■ Stop' : '▷ Start';
+}
+async function scToggleStart(){
+  const s = currentDetailServer;
+  await fetch(`/api/servers/${s.id}/${s.status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()});
+  await loadServers();
+  currentDetailServer = servers.find(x=>x.id===s.id);
+  updateScStatusUI();
+}
+async function scRestart(){
+  const s = currentDetailServer;
+  await fetch(`/api/servers/${s.id}/restart`,{method:'POST',headers:authHeaders()});
+  await loadServers();
+  currentDetailServer = servers.find(x=>x.id===s.id);
+  updateScStatusUI();
+}
+
 function switchDetailTab(t){
-  document.querySelectorAll('.dtab').forEach(d=>d.classList.toggle('sel', d.dataset.t===t));
-  ['console','players','plugins','files','dsettings'].forEach(x=>document.getElementById('dtab-'+x).classList.toggle('hidden', x!==t));
-  if(t==='console') startConsole();
+  document.querySelectorAll('.scItem[data-t]').forEach(d=>d.classList.toggle('sel', d.dataset.t===t));
+  ['console','players','plugins','files','alloc','dsettings','scplayit'].forEach(x=>document.getElementById('dtab-'+x).classList.toggle('hidden', x!==t));
+  if(statsInterval){ clearInterval(statsInterval); statsInterval=null; }
+  if(t==='console'){ startConsole(); pollStats(); }
   if(t==='players') loadPlayers();
   if(t==='files'){ currentFilesPath='.'; loadFiles(); }
+  if(t==='alloc') loadAllocations();
   if(t==='dsettings') loadDetailSettings();
+  if(t==='scplayit') loadScPlayit();
 }
 
 function startConsole(){
@@ -838,7 +1009,24 @@ function sendCmd(){
   consoleWs.send(JSON.stringify({type:'cmd',data:inp.value}));
   inp.value='';
 }
+function fillCmd(c){
+  document.getElementById('cmdInput').value = c;
+  sendCmd();
+}
 document.getElementById('cmdInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') sendCmd(); });
+
+async function pollStats(){
+  async function tick(){
+    if(!currentDetailServer) return;
+    try{
+      const d = await (await fetch(`/api/servers/${currentDetailServer.id}/stats`,{headers:authHeaders()})).json();
+      document.getElementById('cpuLoadNum').textContent = d.cpuPct.toFixed(1)+'%';
+      document.getElementById('memNum').textContent = d.memMB+' MB';
+    }catch(_){}
+  }
+  tick();
+  statsInterval = setInterval(tick, 5000);
+}
 
 /* ---- players ---- */
 async function loadPlayers(){
@@ -885,11 +1073,17 @@ async function loadFiles(){
   document.getElementById('filesBreadcrumb').textContent = '/'+ (currentFilesPath==='.' ? '' : currentFilesPath);
   const r = await fetch(`/api/servers/${currentDetailServer.id}/files?path=${encodeURIComponent(currentFilesPath)}`,{headers:authHeaders()});
   const d = await r.json();
+  if(!r.ok){ document.getElementById('filesList').innerHTML = `<div class="hint">${d.error}</div>`; return; }
+  filesEntries = d.entries;
+  renderFiles();
+}
+function renderFiles(){
+  const q = (document.getElementById('filesSearch')?.value || '').toLowerCase();
   const list = document.getElementById('filesList');
-  if(!r.ok){ list.innerHTML = `<div class="hint">${d.error}</div>`; return; }
   let rows = '';
-  if(currentFilesPath !== '.') rows += `<div class="fileRow" onclick="filesUp()">.. (up)</div>`;
-  rows += d.entries.map(e=>{
+  if(currentFilesPath !== '.' && !q) rows += `<div class="fileRow" onclick="filesUp()">.. (up)</div>`;
+  const filtered = filesEntries.filter(e=>e.name.toLowerCase().includes(q));
+  rows += filtered.map(e=>{
     const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + e.name;
     return `<div class="fileRow" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}">
       ${e.isDir?'📁':'📄'} ${e.name} ${!e.isDir?`<span class="hint" style="margin-left:auto">${(e.size/1024).toFixed(1)}KB</span>`:''}
@@ -928,6 +1122,43 @@ async function saveFile(){
   alert(r.ok ? 'Saved' : d.error);
 }
 function closeFileEditor(){ document.getElementById('fileEditorCard').classList.add('hidden'); currentEditingFile=null; }
+function doUploadFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
+    const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + file.name;
+    const r = await fetch(`/api/servers/${currentDetailServer.id}/files/upload`,{method:'POST',headers:authHeaders(),body:JSON.stringify({path:p, base64})});
+    const d = await r.json();
+    if(!r.ok){ alert(d.error); return; }
+    loadFiles();
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ---- allocations ---- */
+async function loadAllocations(){
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/allocations`,{headers:authHeaders()});
+  const d = await r.json();
+  document.getElementById('allocTbody').innerHTML = d.map(a=>`
+    <tr><td>${a.container_port}</td><td>${a.host_port}</td><td>${a.protocol}</td><td>${a.note||''}</td>
+    <td><button class="btn sm danger" onclick="deleteAllocation(${a.id})">Remove</button></td></tr>`).join('')
+    || `<tr><td colspan="5" class="hint" style="padding:16px">No extra allocations yet.</td></tr>`;
+}
+async function addAllocation(){
+  const container_port = +document.getElementById('allocPort').value;
+  const note = document.getElementById('allocNote').value;
+  if(!container_port) return;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/allocations`,{method:'POST',headers:authHeaders(),body:JSON.stringify({container_port, note})});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  document.getElementById('allocPort').value=''; document.getElementById('allocNote').value='';
+  loadAllocations();
+}
+async function deleteAllocation(id){
+  await fetch(`/api/servers/${currentDetailServer.id}/allocations/${id}`,{method:'DELETE',headers:authHeaders()});
+  loadAllocations();
+}
 
 /* ---- per-server settings ---- */
 async function loadDetailSettings(){
@@ -938,28 +1169,65 @@ async function loadDetailSettings(){
   }
   document.getElementById('dCpu').value = (+s.cpu).toFixed(2);
   document.getElementById('dRam').value = s.ram;
-  document.getElementById('dPlayitToggle').classList.toggle('on', !!s.playit_active);
-  document.getElementById('dPlayitIp').textContent = s.playit_active ? (s.playit_ip || 'Connecting…') : 'Tunnel off';
-  if(!playitEnabled){ document.getElementById('dPlayitCard').style.opacity='.5'; document.getElementById('dPlayitCard').title='Disabled panel-wide in Settings'; }
+  document.getElementById('dIpAlias').value = s.ip_alias || '';
+  const ownerCard = document.getElementById('ownerTransferCard');
+  if(me.admin_enabled){
+    ownerCard.classList.remove('hidden');
+    try{
+      const users = await (await fetch('/api/users',{headers:authHeaders()})).json();
+      document.getElementById('dOwner').innerHTML = users.map(u=>`<option value="${u.id}" ${u.id===s.owner_id?'selected':''}>${u.username}</option>`).join('');
+    }catch(_){}
+  } else ownerCard.classList.add('hidden');
 }
-async function togglePlayitFromDetail(){
-  if(!playitEnabled){ alert('playit.gg tunnels are disabled panel-wide. An admin can turn them on in Settings.'); return; }
-  await togglePlayit(currentDetailServer.id);
-  currentDetailServer = servers.find(s=>s.id===currentDetailServer.id);
-  loadDetailSettings();
+async function saveIpAlias(){
+  const r = await fetch(`/api/servers/${currentDetailServer.id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({ip_alias:document.getElementById('dIpAlias').value})});
+  if(r.ok){ await loadServers(); currentDetailServer = servers.find(x=>x.id===currentDetailServer.id); alert('Saved'); }
 }
-async function saveServerSettings(){
+async function saveOwnerTransfer(){
+  const owner_id = +document.getElementById('dOwner').value;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({owner_id})});
+  if(r.ok){ alert('Ownership transferred'); await loadServers(); }
+}
+async function saveResourcesOnly(){
   const s = currentDetailServer;
+  if(s.status==='on'){ alert('Stop the server first to change resources.'); return; }
   const body = { cpu:+document.getElementById('dCpu').value, ram:+document.getElementById('dRam').value };
-  if(s.type==='mc'){ body.software = document.getElementById('dSoftware').value; body.version = document.getElementById('dVersion').value; }
-  if(!confirm('This recreates the container (brief downtime). Continue?')) return;
   const r = await fetch(`/api/servers/${s.id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify(body)});
   const d = await r.json();
   if(!r.ok){ alert(d.error); return; }
   await loadServers();
   currentDetailServer = servers.find(x=>x.id===s.id);
-  document.getElementById('detailMeta').textContent = svMeta(currentDetailServer);
-  alert('Server reconfigured.');
+  updateScStatusUI();
+  alert('Resources updated.');
+}
+async function saveServerSettings(){
+  const s = currentDetailServer;
+  if(s.status==='on'){ alert('Stop the server first — the version change warning applies.'); return; }
+  const body = { software: document.getElementById('dSoftware').value, version: document.getElementById('dVersion').value };
+  if(!confirm('This recreates the container. Continue?')) return;
+  const r = await fetch(`/api/servers/${s.id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify(body)});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  await loadServers();
+  currentDetailServer = servers.find(x=>x.id===s.id);
+  updateScStatusUI();
+  alert('Server updated.');
+}
+
+/* ---- playit tab ---- */
+function loadScPlayit(){
+  const s = currentDetailServer;
+  document.getElementById('scPlayitStatus').textContent = s.playit_active ? 'Connected' : 'Stopped';
+  document.getElementById('scPlayitBtn').textContent = s.playit_active ? '■ Disconnect' : '▷ Generate Tunnel';
+  document.getElementById('scPlayitIpBox').classList.toggle('hidden', !s.playit_active);
+  if(s.playit_active) document.getElementById('scPlayitIpText').textContent = s.playit_ip || 'Connecting…';
+  if(!playitEnabled){ document.getElementById('scPlayitBtn').disabled = true; document.getElementById('scPlayitBtn').title='Disabled panel-wide in Settings'; }
+}
+async function togglePlayitFromDetail(){
+  if(!playitEnabled){ alert('playit.gg tunnels are disabled panel-wide. An admin can turn them on in Settings.'); return; }
+  await togglePlayit(currentDetailServer.id);
+  currentDetailServer = servers.find(s=>s.id===currentDetailServer.id);
+  loadScPlayit();
 }
 
 /* ===== onboarding tour ===== */
