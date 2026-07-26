@@ -10,6 +10,31 @@ function nextPort(db, type) {
   return row.m ? row.m + 1 : base;
 }
 
+let cachedInfo = null, cachedAt = 0;
+async function getSystemInfo() {
+  if (cachedInfo && Date.now() - cachedAt < 30000) return cachedInfo;
+  const info = await docker.info();
+  cachedInfo = {
+    cpus: info.NCPU || 1,
+    memBytes: info.MemTotal || 2 * 1024 * 1024 * 1024
+  };
+  cachedAt = Date.now();
+  return cachedInfo;
+}
+
+// Clamp a requested {cpu, ram} to what the Docker host can actually give out,
+// leaving a small headroom so the daemon itself doesn't starve.
+async function clampResources(cpu, ram) {
+  const sys = await getSystemInfo();
+  const maxCpu = Math.max(0.25, sys.cpus - 0.25);
+  const maxRamGb = Math.max(0.5, sys.memBytes / (1024 ** 3) - 0.5);
+  return {
+    cpu: Math.min(Math.max(cpu, 0.25), maxCpu),
+    ram: Math.min(Math.max(ram, 0.5), maxRamGb),
+    maxCpu, maxRamGb
+  };
+}
+
 // software name -> itzg/minecraft-server TYPE env value
 const MC_TYPE_MAP = {
   Paper: 'PAPER', Spigot: 'SPIGOT', Purpur: 'PURPUR', Fabric: 'FABRIC',
@@ -28,9 +53,11 @@ async function pullIfMissing(image) {
   });
 }
 
+
 async function createMcContainer(server) {
   const image = 'itzg/minecraft-server:latest';
   await pullIfMissing(image);
+  const { cpu, ram } = await clampResources(server.cpu, server.ram);
   const container = await docker.createContainer({
     Image: image,
     name: `panelfy_${server.id}_${server.name}`,
@@ -38,12 +65,12 @@ async function createMcContainer(server) {
       'EULA=TRUE',
       `TYPE=${MC_TYPE_MAP[server.software] || 'PAPER'}`,
       `VERSION=${server.version}`,
-      `MEMORY=${server.ram}G`,
+      `MEMORY=${Math.max(1, Math.floor(ram))}G`,
       'ONLINE_MODE=TRUE'
     ],
     HostConfig: {
-      Memory: server.ram * 1024 * 1024 * 1024,
-      NanoCpus: server.cpu * 1e9,
+      Memory: Math.floor(ram * 1024 * 1024 * 1024),
+      NanoCpus: Math.floor(cpu * 1e9),
       PortBindings: { '25565/tcp': [{ HostPort: String(server.port) }] },
       RestartPolicy: { Name: 'unless-stopped' }
     },
@@ -61,14 +88,15 @@ async function createNodeContainer(server) {
   const shellCmd = server.repo
     ? `apk add --no-cache git >/dev/null && git clone ${server.repo} /app && cd /app && npm install && ${startCmd}`
     : `mkdir -p /app && cd /app && echo "console.log('Panelfy Node server ready. Upload/clone your code.')" > index.js && node index.js`;
+  const { cpu, ram } = await clampResources(server.cpu, server.ram);
   const container = await docker.createContainer({
     Image: image,
     name: `panelfy_${server.id}_${server.name}`,
     Cmd: ['sh', '-c', shellCmd],
     Env: [`PORT=${server.port}`],
     HostConfig: {
-      Memory: server.ram * 1024 * 1024 * 1024,
-      NanoCpus: server.cpu * 1e9,
+      Memory: Math.floor(ram * 1024 * 1024 * 1024),
+      NanoCpus: Math.floor(cpu * 1e9),
       PortBindings: { [`${server.port}/tcp`]: [{ HostPort: String(server.port) }] },
       RestartPolicy: { Name: 'unless-stopped' }
     },
@@ -104,5 +132,6 @@ async function sendCommand(id, cmd) {
 
 module.exports = {
   docker, nextPort, createMcContainer, createNodeContainer,
-  startContainer, stopContainer, removeContainer, streamLogs, sendCommand
+  startContainer, stopContainer, removeContainer, streamLogs, sendCommand,
+  getSystemInfo, clampResources
 };

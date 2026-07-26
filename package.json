@@ -4,7 +4,8 @@
   "description": "Panelfy - Minecraft & Node.js hosting panel (Docker-based)",
   "main": "server.cjs",
   "scripts": {
-    "start": "node server.cjs"
+    "start": "node server.cjs",
+    "createuser": "node scripts/createuser.cjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

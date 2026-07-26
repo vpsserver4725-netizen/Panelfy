@@ -10,6 +10,7 @@ const path = require('path');
 const db = require('./db.cjs');
 const dock = require('./docker.cjs');
 const playit = require('./playit.cjs');
+const { getMcVersions } = require('./mcversions.cjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'panelfy-dev-secret-change-me';
 const PORT = process.env.PORT || 8080;
@@ -50,6 +51,16 @@ app.post('/api/auth/login', (req, res) => {
 
 app.get('/api/me', auth, (req, res) => res.json(req.user));
 
+// live host capacity, used by the create-server form to cap sliders correctly
+app.get('/api/system/info', auth, async (req, res) => {
+  try { res.json(await dock.getSystemInfo()); }
+  catch (e) { res.status(500).json({ error: 'Could not read Docker host info: ' + e.message }); }
+});
+
+app.get('/api/mc-versions', auth, async (req, res) => {
+  res.json(await getMcVersions());
+});
+
 // ---------- servers ----------
 app.get('/api/servers', auth, (req, res) => {
   const rows = req.user.admin_enabled
@@ -59,14 +70,20 @@ app.get('/api/servers', auth, (req, res) => {
 });
 
 app.post('/api/servers', auth, async (req, res) => {
+  let info;
   try {
     const b = req.body;
     const port = dock.nextPort(db, b.type);
-    const info = db.prepare(`INSERT INTO servers
+    const { cpu, ram, maxCpu, maxRamGb } = await dock.clampResources(b.cpu || 1, b.ram || 2);
+    if ((b.cpu || 1) > maxCpu + 0.001 || (b.ram || 2) > maxRamGb + 0.001) {
+      // still create it, but let the user know it got scaled down to what the host can give
+      req._resourceNote = `Requested ${b.cpu}vCPU/${b.ram}GB exceeds this host's capacity — scaled to ${cpu.toFixed(2)}vCPU/${ram.toFixed(1)}GB.`;
+    }
+    info = db.prepare(`INSERT INTO servers
       (owner_id,name,type,software,version,repo,start_cmd,cpu,ram,disk,port,status)
       VALUES (?,?,?,?,?,?,?,?,?,?,?, 'creating')`).run(
       req.user.id, b.name, b.type, b.software || null, b.version || null,
-      b.repo || null, b.start_cmd || null, b.cpu || 1, b.ram || 2, b.disk || 10, port
+      b.repo || null, b.start_cmd || null, cpu, ram, b.disk || 10, port
     );
     const server = db.prepare('SELECT * FROM servers WHERE id = ?').get(info.lastInsertRowid);
 
@@ -76,10 +93,14 @@ app.post('/api/servers', auth, async (req, res) => {
 
     await dock.startContainer(containerId);
     db.prepare('UPDATE servers SET container_id = ?, status = ? WHERE id = ?').run(containerId, 'on', server.id);
-    res.json(db.prepare('SELECT * FROM servers WHERE id = ?').get(server.id));
+    const created = db.prepare('SELECT * FROM servers WHERE id = ?').get(server.id);
+    res.json({ ...created, note: req._resourceNote || null });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'Failed to create server: ' + e.message });
+    const msg = e.json?.message || e.message;
+    // creation failed after the DB row was made — clean it up so it doesn't linger as a ghost server
+    if (info) db.prepare('DELETE FROM servers WHERE id = ?').run(info.lastInsertRowid);
+    res.status(500).json({ error: 'Failed to create server: ' + msg });
   }
 });
 

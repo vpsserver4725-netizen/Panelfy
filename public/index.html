@@ -4,97 +4,197 @@
 <meta charset="UTF-8">
 <title>Panelfy</title>
 <style>
-:root{--bg:#0b0e14;--panel:#11151d;--panel2:#161c26;--line:#232a37;--txt:#e6ebf3;--sub:#8b96a8;--accent:#5eead4;--accent2:#a78bfa;--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;}
+:root{
+  --bg:#0a0a0f; --panel:#12121a; --panel2:#181822; --line:#26262f;
+  --txt:#f1f1f6; --sub:#8f8fa3; --accent:#8b5cf6; --accent2:#ec4899;
+  --teal:#5eead4; --danger:#f87171; --ok:#4ade80; --warn:#fbbf24;
+  --grad:linear-gradient(135deg,var(--accent),var(--accent2));
+}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--txt);font-family:Inter,'Segoe UI',sans-serif;display:flex;min-height:100vh}
-::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#2a3241;border-radius:4px}
+body{background:var(--bg);color:var(--txt);font-family:'Inter','Segoe UI',sans-serif;display:flex;min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:#2a2a36;border-radius:4px}
 .hidden{display:none!important}
+button{font-family:inherit}
 
-/* LOGIN */
-#loginScreen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:99}
-#loginBox{width:340px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px}
-#loginBox .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#0b0e14;margin:0 auto 14px}
-#loginBox h2{text-align:center;margin-bottom:4px}
-#loginBox p{text-align:center;color:var(--sub);font-size:12px;margin-bottom:20px}
-#loginErr{color:var(--danger);font-size:12px;margin-top:8px;min-height:14px;text-align:center}
+/* ============ LOGIN SCREEN ============ */
+#loginScreen{position:fixed;inset:0;z-index:99;overflow:hidden;
+  background:linear-gradient(180deg,#ec9cc4 0%,#e084a8 25%,#a86bc9 55%,#5b3a9e 100%);}
+#loginScreen .sun{position:absolute;left:50%;top:18%;width:420px;height:420px;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,235,240,.95) 0%,rgba(255,210,225,.55) 55%,rgba(255,210,225,0) 75%);
+  transform:translate(-50%,-50%);animation:pulse 6s ease-in-out infinite;filter:blur(1px)}
+@keyframes pulse{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.04)}}
+.mrange{position:absolute;bottom:0;left:0;width:100%;fill:#6b4a9e;opacity:.55}
+.mrange.m2{opacity:.75;fill:#54367f}
+.mrange.m3{opacity:1;fill:#3d2761}
+#loginScreen .cactus{position:absolute;bottom:0;opacity:.9;animation:sway 7s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(0deg)}50%{transform:rotate(1.2deg)}}
+#loginBox{position:absolute;right:8%;top:50%;transform:translateY(-50%);width:380px;
+  background:rgba(18,14,26,.55);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.15);
+  border-radius:20px;padding:34px;box-shadow:0 20px 60px rgba(0,0,0,.4);z-index:5}
+#loginBox .logo{width:46px;height:46px;border-radius:13px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;margin-bottom:14px;font-size:20px;box-shadow:0 8px 24px rgba(139,92,246,.5)}
+#loginBox h2{font-size:24px;font-weight:800}
+#loginBox p{color:rgba(255,255,255,.7);font-size:13px;margin:4px 0 22px}
+#loginBox .field{margin-bottom:14px}
+#loginBox label{display:block;font-size:11px;color:rgba(255,255,255,.65);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em}
+#loginBox input{width:100%;background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.18);color:#fff;padding:11px 13px;border-radius:10px;font-size:14px}
+#loginBox input:focus{outline:none;border-color:var(--teal)}
+#loginBox button.btn{width:100%;margin-top:6px;padding:12px;font-size:14px;border-radius:10px}
+#loginErr{color:#ffb4b4;font-size:12px;margin-top:10px;min-height:14px;text-align:center}
+#loginHint{color:rgba(255,255,255,.5);font-size:11px;text-align:center;margin-top:14px}
 
-#side{width:230px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
+/* ============ ONBOARDING TOUR ============ */
+.tour-bg{position:fixed;inset:0;background:rgba(5,5,10,.75);z-index:98;display:flex;align-items:center;justify-content:center}
+.tour-card{width:380px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:30px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.tour-card .ic{width:52px;height:52px;border-radius:14px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px}
+.tour-card h3{font-size:19px;margin-bottom:8px}
+.tour-card p{color:var(--sub);font-size:13px;line-height:1.6;margin-bottom:22px}
+.tour-dots{display:flex;justify-content:center;gap:6px;margin-bottom:18px}
+.tour-dots i{width:6px;height:6px;border-radius:50%;background:var(--line);display:block}
+.tour-dots i.on{background:var(--accent);width:18px;border-radius:4px}
+.tour-actions{display:flex;gap:10px;justify-content:center}
+
+/* ============ APP SHELL ============ */
+#side{width:236px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;flex-shrink:0}
 #brand{padding:22px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
-#brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:#0b0e14;font-size:15px}
-#brand span{font-weight:700;font-size:18px}
+#brand .logo{width:32px;height:32px;border-radius:9px;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:15px;box-shadow:0 4px 14px rgba(139,92,246,.4)}
+#brand span{font-weight:800;font-size:19px;letter-spacing:.2px}
 nav{flex:1;padding:14px 10px}
-nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);padding:14px 10px 6px}
-nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--sub);text-decoration:none;font-size:14px;cursor:pointer;margin:1px 0}
+nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--sub);padding:16px 12px 6px}
+nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;color:var(--sub);text-decoration:none;font-size:14px;cursor:pointer;margin:1px 0;transition:.12s}
 nav a:hover{background:var(--panel2);color:var(--txt)}
-nav a.active{background:#1c2531;color:var(--accent);font-weight:600}
+nav a.active{background:linear-gradient(90deg,rgba(139,92,246,.18),rgba(236,72,153,.08));color:var(--teal);font-weight:600;box-shadow:inset 2px 0 0 var(--accent)}
 #userbox{padding:14px;border-top:1px solid var(--line);display:flex;align-items:center;gap:10px}
-#userbox .av{width:32px;height:32px;border-radius:50%;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-weight:700;color:#0b0e14;font-size:13px}
+#userbox .av{width:34px;height:34px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-size:13px}
 #userbox .who small{display:block;color:var(--sub);font-size:11px}
 #logoutBtn{margin-left:auto;background:none;border:none;color:var(--sub);cursor:pointer;font-size:16px}
+#logoutBtn:hover{color:var(--danger)}
 
 #main{flex:1;overflow-y:auto;height:100vh}
-header.top{padding:20px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:rgba(11,14,20,.9);backdrop-filter:blur(8px);z-index:5}
-.btn{background:var(--accent);color:#08201c;border:none;padding:9px 16px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer}
-.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt)}
-.btn.danger{background:var(--danger);color:#2a0a0a}
-.btn.sm{padding:6px 11px;font-size:12px}
-.wrap{padding:26px 32px}
+header.top{padding:22px 32px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:rgba(10,10,15,.85);backdrop-filter:blur(10px);z-index:5}
+header.top h1{font-size:21px;font-weight:800}
+header.top p{color:var(--sub);font-size:13px;margin-top:2px}
+.btn{background:var(--grad);color:#fff;border:none;padding:10px 18px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;box-shadow:0 6px 18px rgba(139,92,246,.35)}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--txt);box-shadow:none}
+.btn.danger{background:var(--danger);color:#2a0a0a;box-shadow:none}
+.btn.sm{padding:7px 12px;font-size:12px}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+
+.wrap{padding:28px 32px}
 .grid{display:grid;gap:16px}
 .g4{grid-template-columns:repeat(4,1fr)}
 .g3{grid-template-columns:repeat(3,1fr)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
-.stat .num{font-size:26px;font-weight:800}
-.stat .lbl{color:var(--sub);font-size:12px;margin-top:4px}
-.section-title{display:flex;justify-content:space-between;align-items:center;margin:28px 0 12px}
-.section-title h2{font-size:15px;color:var(--sub);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px}
+.stat .ic{width:36px;height:36px;border-radius:10px;background:var(--panel2);display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:16px}
+.stat .num{font-size:28px;font-weight:800}
+.stat .lbl{color:var(--sub);font-size:11px;margin-top:4px;text-transform:uppercase;letter-spacing:.04em}
+.stat .pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--ok);margin-top:10px}
+.stat .pill i{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+
+.section-title{display:flex;justify-content:space-between;align-items:center;margin:30px 0 12px}
+.section-title h2{font-size:14px;color:var(--sub);text-transform:uppercase;letter-spacing:.07em;font-weight:700}
+
 table{width:100%;border-collapse:collapse}
-th{text-align:left;font-size:11px;color:var(--sub);text-transform:uppercase;padding:10px 12px;border-bottom:1px solid var(--line)}
-td{padding:12px;border-bottom:1px solid var(--line);font-size:13px}
-.svcard{display:flex;align-items:center;gap:14px;padding:14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--panel2)}
-.svcard .ic{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:#0b0e14}
-.svcard .body{flex:1}
-.svcard .name{font-weight:600;font-size:14px;cursor:pointer}
+th{text-align:left;font-size:11px;color:var(--sub);text-transform:uppercase;letter-spacing:.05em;padding:11px 14px;border-bottom:1px solid var(--line)}
+td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
+
+.svcard{display:flex;align-items:center;gap:14px;padding:15px;border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--panel2);transition:.12s}
+.svcard:hover{border-color:#3a3a48}
+.svcard .ic{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;background:var(--panel)}
+.svcard .body{flex:1;min-width:0}
+.svcard .name{font-weight:700;font-size:14px;cursor:pointer}
+.svcard .name:hover{color:var(--teal)}
 .svcard .meta{color:var(--sub);font-size:12px;margin-top:2px}
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px}
-.dot.on{background:var(--ok)}.dot.off{background:var(--danger)}
-.tag{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700}
-.tag.on{background:#123024;color:var(--ok)}.tag.off{background:#2c1414;color:var(--danger)}
-.modal-bg{position:fixed;inset:0;background:rgba(5,7,11,.7);display:none;align-items:center;justify-content:center;z-index:50}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:6px}
+.dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}.dot.off{background:var(--danger)}
+.tag{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.tag.on{background:#0f2a1c;color:var(--ok)}.tag.off{background:#2c1414;color:var(--danger)}
+
+.empty{text-align:center;padding:50px 20px;color:var(--sub);font-size:13px;border:1px dashed var(--line);border-radius:14px}
+
+/* ============ MODALS ============ */
+.modal-bg{position:fixed;inset:0;background:rgba(5,5,10,.72);display:none;align-items:center;justify-content:center;z-index:50}
 .modal-bg.show{display:flex}
-.modal{background:var(--panel);border:1px solid var(--line);border-radius:14px;width:560px;max-width:92vw;max-height:88vh;overflow-y:auto}
-.modal h3{padding:18px 22px;border-bottom:1px solid var(--line);font-size:16px}
-.modal .mbody{padding:20px 22px}
-.modal .mfoot{padding:16px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
-.field{margin-bottom:14px}
-.field label{display:block;font-size:12px;color:var(--sub);margin-bottom:6px}
-.field input,.field select{width:100%;background:#0b0e14;border:1px solid var(--line);color:var(--txt);padding:9px 11px;border-radius:8px;font-size:13px}
-.typechoice{display:flex;gap:10px;margin-bottom:14px}
-.typechoice div{flex:1;border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center;cursor:pointer;font-size:13px;font-weight:600}
-.typechoice div.sel{border-color:var(--accent);background:#0f2420;color:var(--accent)}
-.toggle{position:relative;width:38px;height:21px;background:#232a37;border-radius:20px;cursor:pointer;flex-shrink:0}
-.toggle i{position:absolute;top:2px;left:2px;width:17px;height:17px;background:#8b96a8;border-radius:50%;transition:.15s}
-.toggle.on{background:#123024}.toggle.on i{left:19px;background:var(--ok)}
-.playit-ip{font-family:monospace;background:#0b0e14;padding:8px 12px;border-radius:8px;display:inline-block;margin:10px 0;color:var(--accent)}
-.empty{text-align:center;padding:40px;color:var(--sub);font-size:13px}
-#console{background:#000;color:#0f0;font-family:monospace;font-size:12px;padding:14px;height:340px;overflow-y:auto;border-radius:8px;white-space:pre-wrap}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:600px;max-width:92vw;max-height:90vh;overflow-y:auto}
+.modal h3{padding:20px 24px;border-bottom:1px solid var(--line);font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px}
+.modal .mbody{padding:22px 24px}
+.modal .mfoot{padding:16px 24px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.field{margin-bottom:16px}
+.field label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--sub);margin-bottom:7px;font-weight:600}
+.field input,.field select{width:100%;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;font-size:13px}
+.field input:focus,.field select:focus{outline:none;border-color:var(--accent)}
+.field .hint{font-size:11px;color:var(--sub);margin-top:5px}
+.field .hint.ok{color:var(--ok)}
+
+.typechoice{display:flex;gap:10px;margin-bottom:16px}
+.typechoice div{flex:1;border:1px solid var(--line);border-radius:11px;padding:15px;text-align:center;cursor:pointer;font-size:13px;font-weight:700;transition:.12s}
+.typechoice div.sel{border-color:var(--accent);background:rgba(139,92,246,.12);color:var(--teal)}
+
+.presetgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+.presetgrid button{padding:9px 0;border-radius:9px;border:1px solid var(--line);background:#0a0a0f;color:var(--sub);font-size:12px;font-weight:700;cursor:pointer}
+.presetgrid button.sel{border-color:var(--accent);background:rgba(139,92,246,.15);color:var(--teal)}
+
+.autobox{position:relative}
+.autobox .badge{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;background:var(--grad);color:#fff;padding:3px 8px;border-radius:6px;font-weight:800;letter-spacing:.03em}
+
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+.softgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:6px}
+.softcard{border:1px solid var(--line);border-radius:11px;padding:12px 8px;text-align:center;cursor:pointer;transition:.12s}
+.softcard.sel{border-color:var(--warn);background:rgba(251,191,36,.1)}
+.softcard .si{font-size:19px;margin-bottom:5px}
+.softcard .sn{font-size:12px;font-weight:700}
+.softcard .sd{font-size:10px;color:var(--sub);margin-top:2px}
+
+.toggle{position:relative;width:38px;height:21px;background:#23232e;border-radius:20px;cursor:pointer;flex-shrink:0}
+.toggle i{position:absolute;top:2px;left:2px;width:17px;height:17px;background:#8f8fa3;border-radius:50%;transition:.15s}
+.toggle.on{background:#0f2a1c}.toggle.on i{left:19px;background:var(--ok)}
+
+.playit-ip{font-family:monospace;background:#0a0a0f;padding:9px 13px;border-radius:9px;display:inline-block;margin:10px 0;color:var(--teal)}
+#console{background:#000;color:#4ade80;font-family:'Consolas',monospace;font-size:12px;padding:15px;height:360px;overflow-y:auto;border-radius:10px;white-space:pre-wrap}
 #cmdRow{display:flex;gap:8px;margin-top:10px}
-#cmdRow input{flex:1;background:#0b0e14;border:1px solid var(--line);color:var(--txt);padding:9px 11px;border-radius:8px;font-family:monospace}
+#cmdRow input{flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;font-family:monospace}
 </style>
 </head>
 <body>
 
+<!-- ===== LOGIN ===== -->
 <div id="loginScreen">
+  <div class="sun"></div>
+  <svg class="mrange m1" viewBox="0 0 1440 300" preserveAspectRatio="none" style="height:340px"><path d="M0,180 C200,100 350,220 500,150 C650,90 750,200 900,140 C1050,90 1250,200 1440,130 L1440,300 L0,300 Z"/></svg>
+  <svg class="mrange m2" viewBox="0 0 1440 260" preserveAspectRatio="none" style="height:250px"><path d="M0,200 C180,140 320,230 480,170 C640,120 780,220 960,160 C1120,110 1280,210 1440,150 L1440,260 L0,260 Z"/></svg>
+  <svg class="mrange m3" viewBox="0 0 1440 200" preserveAspectRatio="none" style="height:170px"><path d="M0,170 C220,110 380,180 560,120 C720,80 900,170 1080,110 C1240,70 1340,150 1440,110 L1440,200 L0,200 Z"/></svg>
+  <svg class="cactus" style="left:6%" width="46" height="130" viewBox="0 0 46 130"><rect x="18" y="20" width="10" height="110" rx="5" fill="#241539"/><rect x="0" y="45" width="10" height="45" rx="5" fill="#241539"/><rect x="36" y="55" width="10" height="35" rx="5" fill="#241539"/></svg>
+  <svg class="cactus" style="left:16%;animation-delay:1s" width="34" height="90" viewBox="0 0 34 90"><rect x="12" y="15" width="10" height="75" rx="5" fill="#2c1b45"/><rect x="0" y="35" width="10" height="30" rx="5" fill="#2c1b45"/></svg>
+  <svg class="cactus" style="right:10%;animation-delay:2s" width="50" height="140" viewBox="0 0 50 140"><rect x="20" y="20" width="10" height="120" rx="5" fill="#241539"/><rect x="0" y="50" width="10" height="45" rx="5" fill="#241539"/><rect x="40" y="60" width="10" height="40" rx="5" fill="#241539"/></svg>
+
   <div id="loginBox">
     <div class="logo">P</div>
-    <h2 style="text-align:center">Panelfy</h2>
-    <p>Sign in to manage your servers</p>
-    <div class="field"><label>Username</label><input id="lUser" value="admin"></div>
-    <div class="field"><label>Password</label><input id="lPass" type="password" placeholder="changeme123"></div>
-    <button class="btn" style="width:100%" onclick="doLogin()">Sign In</button>
+    <h2>Panelfy Login</h2>
+    <p>Welcome to the nature</p>
+    <div class="field"><label>Username</label><input id="lUser" value="admin" autocomplete="username"></div>
+    <div class="field"><label>Password</label><input id="lPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn" onclick="doLogin()">Sign In</button>
     <div id="loginErr"></div>
+    <div id="loginHint">Default: admin / changeme123 — change this after first login</div>
   </div>
 </div>
 
+<!-- ===== ONBOARDING TOUR ===== -->
+<div class="tour-bg hidden" id="tourBg">
+  <div class="tour-card">
+    <div class="ic" id="tourIcon">👋</div>
+    <h3 id="tourTitle">Welcome to Panelfy!</h3>
+    <p id="tourText">Let's take a 20-second tour of your new hosting panel.</p>
+    <div class="tour-dots" id="tourDots"></div>
+    <div class="tour-actions">
+      <button class="btn ghost sm" onclick="skipTour()">Skip</button>
+      <button class="btn sm" onclick="nextTour()" id="tourNextBtn">Next</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
 <div id="app" class="hidden" style="display:flex;width:100%">
   <div id="side">
     <div id="brand"><div class="logo">P</div><span>Panelfy</span></div>
@@ -109,22 +209,23 @@ td{padding:12px;border-bottom:1px solid var(--line);font-size:13px}
     <div id="userbox">
       <div class="av" id="avLetter">?</div>
       <div class="who"><span id="whoName"></span><small id="roleLabel"></small></div>
-      <button id="logoutBtn" onclick="logout()">⏻</button>
+      <button id="logoutBtn" onclick="logout()" title="Log out">⏻</button>
     </div>
   </div>
 
   <div id="main">
     <header class="top">
-      <div><h1 id="pgTitle">Dashboard</h1></div>
-      <button class="btn" onclick="openCreate()">+ New Server</button>
+      <div><h1 id="pgTitle">Dashboard</h1><p id="pgSub">Monitor your infrastructure and activity</p></div>
+      <button class="btn" onclick="openCreate()">+ Deploy New Server</button>
     </header>
     <div class="wrap">
+
       <div id="page-dash">
         <div class="grid g4">
-          <div class="card stat"><div class="num" id="statOn">0</div><div class="lbl">Servers running</div></div>
-          <div class="card stat"><div class="num" id="statTotal">0</div><div class="lbl">Total servers</div></div>
-          <div class="card stat"><div class="num" id="statMc">0</div><div class="lbl">Minecraft servers</div></div>
-          <div class="card stat"><div class="num" id="statNode">0</div><div class="lbl">Node.js servers</div></div>
+          <div class="card stat"><div class="ic">▣</div><div class="num" id="statTotal">0</div><div class="lbl">Total Servers</div><div class="pill"><i></i>+0 this week</div></div>
+          <div class="card stat"><div class="ic">⚡</div><div class="num" id="statOn">0</div><div class="lbl">Running Servers</div><div class="pill"><i></i>Active now</div></div>
+          <div class="card stat"><div class="ic">◈</div><div class="num" id="statCpuHost">—</div><div class="lbl">Host CPUs</div><div class="pill"><i></i>Detected</div></div>
+          <div class="card stat"><div class="ic">▤</div><div class="num" id="statRamHost">—</div><div class="lbl">Host RAM</div><div class="pill"><i></i>Detected</div></div>
         </div>
         <div class="section-title"><h2>Your Servers</h2></div>
         <div id="dashList"></div>
@@ -134,8 +235,8 @@ td{padding:12px;border-bottom:1px solid var(--line);font-size:13px}
 
       <div id="page-playit" class="hidden">
         <div class="card" style="margin-bottom:16px">
-          <b>playit.gg integration</b>
-          <p style="color:var(--sub);font-size:13px;margin-top:6px">Requires PLAYIT_SECRET set on the server (claim an agent at playit.gg/account/agents). Toggle a Minecraft server below to expose it with a public IP.</p>
+          <b>⇄ playit.gg integration</b>
+          <p style="color:var(--sub);font-size:13px;margin-top:6px">First toggle-on per server needs a one-time approval click. After that it reconnects automatically — no dashboard, no manual secret.</p>
         </div>
         <div id="playitList"></div>
       </div>
@@ -162,29 +263,65 @@ td{padding:12px;border-bottom:1px solid var(--line);font-size:13px}
   </div>
 </div>
 
-<!-- CREATE SERVER MODAL -->
+<!-- ===== CREATE SERVER MODAL ===== -->
 <div class="modal-bg" id="createModal">
   <div class="modal">
-    <h3>Create a New Server</h3>
+    <h3>⚡ Deploy New Server</h3>
     <div class="mbody">
       <div class="typechoice"><div class="sel" id="tMc" onclick="setType('mc')">⛏ Minecraft</div><div id="tNode" onclick="setType('node')">⬢ Node.js</div></div>
-      <div class="field"><label>Server name</label><input id="fName" placeholder="lifesteal-smp"></div>
-      <div class="field" id="mcOpts">
-        <label>Software</label>
-        <select id="fSoftware"><option>Paper</option><option>Spigot</option><option>Purpur</option><option>Fabric</option><option>Forge</option><option>NeoForge</option><option>Vanilla</option><option>Velocity (Proxy)</option><option>BungeeCord (Proxy)</option><option>Bukkit</option><option>Sponge</option></select>
+
+      <div class="field"><label>Instance Name</label><input id="fName" placeholder="e.g. Production Survival"></div>
+
+      <div class="field">
+        <label>RAM Allocation (GB)</label>
+        <div class="presetgrid" id="ramPresets"></div>
+        <input type="number" id="fRam" value="4" min="1" oninput="onRamChange()">
+        <div class="hint" id="ramHint"></div>
       </div>
-      <div class="field" id="mcVerOpt"><label>Minecraft version</label><select id="fMcVer"></select></div>
+
+      <div class="row2">
+        <div class="field">
+          <label>CPU Limit (%)</label>
+          <div class="autobox"><input id="fCpuPct" value="150" oninput="fCpuAuto=false"><span class="badge" id="cpuAutoBadge">AUTO</span></div>
+          <div class="hint ok" id="cpuHint">Auto-optimized for selected RAM</div>
+        </div>
+        <div class="field">
+          <label>Disk Limit (GB)</label>
+          <input type="number" id="fDisk" value="10" min="1">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Network Port</label>
+          <input id="fPort" placeholder="auto-assigned">
+        </div>
+        <div class="field">
+          <label>IP Alias <span style="opacity:.6;font-weight:400">(optional)</span></label>
+          <input id="fAlias" placeholder="e.g. play.example.com">
+        </div>
+      </div>
+
+      <div class="field hidden" id="ownerField">
+        <label>Assign Server Owner</label>
+        <select id="fOwner"></select>
+        <div class="hint">Select which user owns and has access to this server</div>
+      </div>
+
+      <div class="field" id="mcSoftField">
+        <label>Server Software</label>
+        <div class="softgrid" id="softGrid"></div>
+      </div>
+      <div class="field" id="mcVerOpt"><label>Software Version</label><select id="fMcVer"><option>latest</option></select></div>
+
       <div class="field hidden" id="nodeOpts">
-        <label>Node.js version</label>
+        <label>Node.js Version</label>
         <select id="fNodeVer"><option>22</option><option>21</option><option>20</option><option>19</option><option>18</option><option>17</option><option>16</option><option>14</option></select>
       </div>
-      <div class="field hidden" id="repoOpt"><label>Git repo URL (optional)</label><input id="fRepo" placeholder="https://github.com/you/your-node-app"></div>
-      <div class="field hidden" id="cmdOpt"><label>Start command</label><input id="fStartCmd" placeholder="npm start"></div>
-      <div class="field"><label>CPU cores: <span id="cpuVal">1</span></label><input type="range" min="1" max="8" value="1" id="fCpu" oninput="cpuVal.textContent=this.value"></div>
-      <div class="field"><label>RAM (GB): <span id="ramVal">2</span></label><input type="range" min="1" max="32" value="2" id="fRam" oninput="ramVal.textContent=this.value"></div>
-      <div class="field"><label>Disk (GB): <span id="diskVal">10</span></label><input type="range" min="1" max="100" value="10" id="fDisk" oninput="diskVal.textContent=this.value"></div>
+      <div class="field hidden" id="repoOpt"><label>Git Repo URL <span style="opacity:.6;font-weight:400">(optional)</span></label><input id="fRepo" placeholder="https://github.com/you/your-node-app"></div>
+      <div class="field hidden" id="cmdOpt"><label>Start Command</label><input id="fStartCmd" placeholder="npm start"></div>
     </div>
-    <div class="mfoot"><button class="btn ghost" onclick="closeModal('createModal')">Cancel</button><button class="btn" id="deployBtn" onclick="createServer()">Deploy Server</button></div>
+    <div class="mfoot"><button class="btn ghost" onclick="closeModal('createModal')">Cancel</button><button class="btn" id="deployBtn" onclick="createServer()">✨ Launch Instance</button></div>
   </div>
 </div>
 
@@ -202,14 +339,45 @@ td{padding:12px;border-bottom:1px solid var(--line);font-size:13px}
 </div>
 
 <script>
-const API = ''; // same origin
 let token = localStorage.getItem('panelfy_token') || '';
 let me = null;
 let servers = [];
-let consoleWs = null, consoleServerId = null;
+let sysInfo = { cpus: 2, memBytes: 4*1024**3 };
+let mcVersionsCache = [];
+let consoleWs = null;
+let fCpuAuto = true;
 
-const mcVersions = ['26.2','25.4','24.6','1.21.4','1.21.1','1.20.6','1.20.1','1.19.4','1.18.2','1.17.1','1.16.5','1.15.2','1.14.4','1.13.2','1.12.2','1.11.2','1.10.2','1.9.4','1.8.9'];
-document.getElementById('fMcVer').innerHTML = mcVersions.map(v=>`<option>${v}</option>`).join('');
+const SOFTWARES = [
+  {n:'Paper',i:'⚡',d:'Performance Vanilla'},{n:'Spigot',i:'🔧',d:'Classic Bukkit fork'},
+  {n:'Purpur',i:'🟣',d:'Paper + extras'},{n:'Fabric',i:'🧵',d:'Lightweight Mods'},
+  {n:'Forge',i:'🛠',d:'Modded Minecraft'},{n:'NeoForge',i:'⛓',d:'Modern Forge fork'},
+  {n:'Vanilla',i:'🎮',d:'Official server'},{n:'Velocity (Proxy)',i:'⏩',d:'Next-gen Proxy'},
+  {n:'BungeeCord (Proxy)',i:'🔀',d:'Classic Proxy'},{n:'Bukkit',i:'📦',d:'Plugin API'},
+  {n:'Sponge',i:'🧽',d:'SpongeVanilla'}
+];
+document.getElementById('softGrid').innerHTML = SOFTWARES.map((s,i)=>
+  `<div class="softcard ${i===0?'sel':''}" data-s="${s.n}" onclick="selectSoftware('${s.n}')"><div class="si">${s.i}</div><div class="sn">${s.n.split(' ')[0]}</div><div class="sd">${s.d}</div></div>`
+).join('');
+let selectedSoftware = 'Paper';
+function selectSoftware(n){ selectedSoftware=n; document.querySelectorAll('.softcard').forEach(c=>c.classList.toggle('sel', c.dataset.s===n)); }
+
+const RAM_PRESETS = [2,4,8,16,24,32,48,64];
+document.getElementById('ramPresets').innerHTML = RAM_PRESETS.map(v=>`<button data-v="${v}" onclick="pickRam(${v})">${v}GB</button>`).join('');
+function pickRam(v){ document.getElementById('fRam').value = v; document.querySelectorAll('#ramPresets button').forEach(b=>b.classList.toggle('sel', +b.dataset.v===v)); onRamChange(); }
+function onRamChange(){
+  const ram = +document.getElementById('fRam').value || 1;
+  document.querySelectorAll('#ramPresets button').forEach(b=>b.classList.toggle('sel', +b.dataset.v===ram));
+  const maxRam = sysInfo.memBytes/1024**3;
+  const hint = document.getElementById('ramHint');
+  if(ram > maxRam-0.5){ hint.textContent = `Host only has ~${maxRam.toFixed(1)}GB total — this will be scaled down automatically.`; hint.className='hint'; }
+  else { hint.textContent = `${(maxRam-ram).toFixed(1)}GB will remain free on host.`; hint.className='hint ok'; }
+  if(fCpuAuto){
+    const suggestedCores = Math.min(sysInfo.cpus - 0.25, Math.max(0.5, ram * 0.4));
+    document.getElementById('fCpuPct').value = Math.round(suggestedCores*100);
+    document.getElementById('cpuHint').textContent = `Auto-optimized for ${ram}GB · ~${suggestedCores.toFixed(2)} vCPU of ${sysInfo.cpus} available`;
+  }
+}
+document.getElementById('fCpuPct').addEventListener('focus', ()=>{ fCpuAuto=false; document.getElementById('cpuAutoBadge').style.opacity='.35'; });
 
 function authHeaders(){ return {'Authorization':'Bearer '+token,'Content-Type':'application/json'}; }
 
@@ -223,6 +391,7 @@ async function doLogin(){
   me = d.user;
   boot();
 }
+document.getElementById('lPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 function logout(){ localStorage.removeItem('panelfy_token'); location.reload(); }
 
 async function boot(){
@@ -231,8 +400,26 @@ async function boot(){
   document.getElementById('whoName').textContent = me.username;
   document.getElementById('avLetter').textContent = me.username[0].toUpperCase();
   document.getElementById('roleLabel').textContent = (me.admin_enabled?'Admin • Access ON':'User');
-  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('adminGrp').style.display='none'; }
+  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('adminGrp').style.display='none'; document.getElementById('ownerField').classList.add('hidden'); }
+  else { document.getElementById('ownerField').classList.remove('hidden'); loadOwners(); }
+
+  try{ sysInfo = await (await fetch('/api/system/info',{headers:authHeaders()})).json(); }catch(_){}
+  document.getElementById('statCpuHost').textContent = sysInfo.cpus;
+  document.getElementById('statRamHost').textContent = (sysInfo.memBytes/1024**3).toFixed(0)+'GB';
+  onRamChange();
+
+  try{ mcVersionsCache = await (await fetch('/api/mc-versions',{headers:authHeaders()})).json(); }catch(_){ mcVersionsCache=['1.21.4','1.20.6','1.8.9']; }
+  document.getElementById('fMcVer').innerHTML = ['latest',...mcVersionsCache].map(v=>`<option>${v}</option>`).join('');
+
   await loadServers();
+  maybeShowTour();
+}
+
+async function loadOwners(){
+  try{
+    const users = await (await fetch('/api/users',{headers:authHeaders()})).json();
+    document.getElementById('fOwner').innerHTML = users.map(u=>`<option value="${u.id}">${u.username}${u.id===me.id?' (You)':''}</option>`).join('');
+  }catch(_){}
 }
 
 async function loadServers(){
@@ -242,7 +429,6 @@ async function loadServers(){
   render();
 }
 
-// ---- nav ----
 document.querySelectorAll('#side nav a').forEach(a=>a.addEventListener('click',()=>{
   document.querySelectorAll('#side nav a').forEach(x=>x.classList.remove('active'));
   a.classList.add('active');
@@ -251,13 +437,14 @@ document.querySelectorAll('#side nav a').forEach(a=>a.addEventListener('click',(
 function showPage(p){
   document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
   document.getElementById('page-'+p).classList.remove('hidden');
-  const titles={dash:'Dashboard',servers:'My Servers',playit:'playit.gg Tunnels',users:'Users',console:'Console'};
-  document.getElementById('pgTitle').textContent = titles[p];
+  const titles={dash:['Dashboard','Monitor your infrastructure and activity'],servers:['My Servers','Manage your deployments'],playit:['playit.gg Tunnels','Public IPs for your Minecraft servers'],users:['Users','Manage panel accounts and admin access'],console:['Console','']};
+  document.getElementById('pgTitle').textContent = titles[p][0];
+  document.getElementById('pgSub').textContent = titles[p][1];
   if(p==='users') loadUsers();
 }
 
 function svIcon(s){ return s.type==='mc'?'⛏':'⬢'; }
-function svMeta(s){ return s.type==='mc' ? `${s.software} • ${s.version} • ${s.cpu} vCPU / ${s.ram}GB • port ${s.port}` : `Node ${s.version} • ${s.cpu} vCPU / ${s.ram}GB • port ${s.port}`; }
+function svMeta(s){ return s.type==='mc' ? `${s.software} • ${s.version} • ${(+s.cpu).toFixed(2)} vCPU / ${s.ram}GB • port ${s.port}` : `Node ${s.version} • ${(+s.cpu).toFixed(2)} vCPU / ${s.ram}GB • port ${s.port}`; }
 function svCardHTML(s){
   return `<div class="svcard">
     <div class="ic">${svIcon(s)}</div>
@@ -270,9 +457,7 @@ function svCardHTML(s){
 function render(){
   document.getElementById('statOn').textContent = servers.filter(s=>s.status==='on').length;
   document.getElementById('statTotal').textContent = servers.length;
-  document.getElementById('statMc').textContent = servers.filter(s=>s.type==='mc').length;
-  document.getElementById('statNode').textContent = servers.filter(s=>s.type==='node').length;
-  document.getElementById('dashList').innerHTML = servers.map(svCardHTML).join('') || '<div class="empty">No servers yet — click "New Server" to deploy one.</div>';
+  document.getElementById('dashList').innerHTML = servers.map(svCardHTML).join('') || '<div class="empty">No servers yet — click "Deploy New Server" to launch one.</div>';
   document.getElementById('serversList').innerHTML = document.getElementById('dashList').innerHTML;
   document.getElementById('playitList').innerHTML = servers.filter(s=>s.type==='mc').map(s=>`
     <div class="card" style="margin-bottom:12px">
@@ -284,15 +469,9 @@ function render(){
     </div>`).join('') || '<div class="empty">No Minecraft servers to tunnel.</div>';
 }
 
-async function toggleServer(id,status){
-  await fetch(`/api/servers/${id}/${status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()});
-  await loadServers();
-}
-async function deleteServer(id){
-  if(!confirm('Delete this server and its container permanently?')) return;
-  await fetch(`/api/servers/${id}`,{method:'DELETE',headers:authHeaders()});
-  await loadServers();
-}
+async function toggleServer(id,status){ await fetch(`/api/servers/${id}/${status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()}); await loadServers(); }
+async function deleteServer(id){ if(!confirm('Delete this server and its container permanently?')) return; await fetch(`/api/servers/${id}`,{method:'DELETE',headers:authHeaders()}); await loadServers(); }
+
 async function togglePlayit(id){
   const r = await fetch(`/api/servers/${id}/playit/toggle`,{method:'POST',headers:authHeaders()});
   const d = await r.json();
@@ -300,7 +479,7 @@ async function togglePlayit(id){
   await loadServers();
   if(d.active && d.status==='pending_claim' && d.claimUrl){
     window.open(d.claimUrl,'_blank');
-    alert('First time linking this server to playit.gg — approve it in the tab that just opened:\n\n'+d.claimUrl+'\n\nOnce approved the public IP appears automatically. Every restart after this is automatic, no click needed.');
+    alert('First time linking this server to playit.gg — approve it in the tab that just opened:\n\n'+d.claimUrl+'\n\nOnce approved the public IP appears automatically. Every restart after this is automatic.');
     pollPlayit(id);
   }
 }
@@ -311,10 +490,9 @@ function pollPlayit(id){
     if(d.status==='connected' && d.ip){ clearInterval(iv); await loadServers(); }
     if(!d.active){ clearInterval(iv); }
   }, 3000);
-  setTimeout(()=>clearInterval(iv), 120000); // give up after 2 min
+  setTimeout(()=>clearInterval(iv), 120000);
 }
 
-// ---- users ----
 async function loadUsers(){
   const r = await fetch('/api/users',{headers:authHeaders()});
   if(!r.ok) return;
@@ -336,15 +514,14 @@ async function addUser(){
   closeModal('userModal'); loadUsers();
 }
 
-// ---- create server modal ----
 window._newType='mc';
-function openCreate(){ document.getElementById('createModal').classList.add('show'); }
+function openCreate(){ document.getElementById('createModal').classList.add('show'); if(me?.admin_enabled) loadOwners(); }
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function setType(t){
   window._newType=t;
   document.getElementById('tMc').classList.toggle('sel',t==='mc');
   document.getElementById('tNode').classList.toggle('sel',t==='node');
-  document.getElementById('mcOpts').classList.toggle('hidden',t!=='mc');
+  document.getElementById('mcSoftField').classList.toggle('hidden',t!=='mc');
   document.getElementById('mcVerOpt').classList.toggle('hidden',t!=='mc');
   document.getElementById('nodeOpts').classList.toggle('hidden',t!=='node');
   document.getElementById('repoOpt').classList.toggle('hidden',t!=='node');
@@ -353,26 +530,26 @@ function setType(t){
 async function createServer(){
   const t = window._newType;
   const btn = document.getElementById('deployBtn'); btn.disabled=true; btn.textContent='Deploying…';
+  const cpuCores = (+document.getElementById('fCpuPct').value || 100) / 100;
   const body = {
     name: document.getElementById('fName').value || ('server-'+Date.now()),
     type: t,
-    software: t==='mc'?document.getElementById('fSoftware').value:null,
+    software: t==='mc'?selectedSoftware:null,
     version: t==='mc'?document.getElementById('fMcVer').value:document.getElementById('fNodeVer').value,
     repo: t==='node'?document.getElementById('fRepo').value:null,
     start_cmd: t==='node'?document.getElementById('fStartCmd').value:null,
-    cpu:+document.getElementById('fCpu').value, ram:+document.getElementById('fRam').value, disk:+document.getElementById('fDisk').value
+    cpu: cpuCores, ram:+document.getElementById('fRam').value, disk:+document.getElementById('fDisk').value
   };
   const r = await fetch('/api/servers',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
   const d = await r.json();
-  btn.disabled=false; btn.textContent='Deploy Server';
+  btn.disabled=false; btn.textContent='✨ Launch Instance';
   if(!r.ok){ alert(d.error); return; }
   closeModal('createModal');
+  if(d.note) alert(d.note);
   await loadServers();
 }
 
-// ---- console ----
 function openConsole(id,name){
-  consoleServerId = id;
   document.getElementById('consoleTitle').textContent = 'Console — '+name;
   document.getElementById('console').innerHTML='';
   document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
@@ -392,6 +569,31 @@ function sendCmd(){
   inp.value='';
 }
 document.getElementById('cmdInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') sendCmd(); });
+
+/* ===== onboarding tour ===== */
+const TOUR_STEPS = [
+  {ic:'👋',title:'Welcome to Panelfy!',text:"Let's take a quick tour of your new hosting panel."},
+  {ic:'⚡',title:'Deploy in seconds',text:'Hit "Deploy New Server" to spin up Minecraft (1.8.9 → latest, any software) or a Node.js app in a real Docker container.'},
+  {ic:'⇄',title:'Free public IPs',text:'Turn on the playit.gg tunnel for any Minecraft server to get a shareable join address — no port forwarding.'},
+  {ic:'◎',title:"You're all set",text:'Admins can manage users and access from the Users tab. Enjoy!'}
+];
+let tourStep = 0;
+function maybeShowTour(){
+  if(localStorage.getItem('panelfy_tour_seen')) return;
+  tourStep = 0;
+  renderTourStep();
+  document.getElementById('tourBg').classList.remove('hidden');
+}
+function renderTourStep(){
+  const s = TOUR_STEPS[tourStep];
+  document.getElementById('tourIcon').textContent = s.ic;
+  document.getElementById('tourTitle').textContent = s.title;
+  document.getElementById('tourText').textContent = s.text;
+  document.getElementById('tourDots').innerHTML = TOUR_STEPS.map((_,i)=>`<i class="${i===tourStep?'on':''}"></i>`).join('');
+  document.getElementById('tourNextBtn').textContent = tourStep===TOUR_STEPS.length-1 ? "Let's go" : 'Next';
+}
+function nextTour(){ tourStep++; if(tourStep>=TOUR_STEPS.length){ skipTour(); return; } renderTourStep(); }
+function skipTour(){ localStorage.setItem('panelfy_tour_seen','1'); document.getElementById('tourBg').classList.add('hidden'); }
 
 if(token){
   fetch('/api/me',{headers:authHeaders()}).then(r=>r.ok?r.json():Promise.reject()).then(u=>{ me=u; boot(); }).catch(()=>{ localStorage.removeItem('panelfy_token'); });
