@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 8080;
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- auth helpers ----------
@@ -38,6 +38,18 @@ function requireAdmin(req, res, next) {
 }
 
 // ---------- auth routes ----------
+// Public — the login screen needs branding before anyone is authenticated
+app.get('/api/branding', (req, res) => {
+  res.json({
+    panel_name: db.getSetting('panel_name', 'Panelfy'),
+    panel_logo: db.getSetting('panel_logo', ''),
+    login_bg: db.getSetting('login_bg', ''),
+    login_bg_blur: db.getSetting('login_bg_blur', '0'),
+    cinematic_login: db.getSetting('cinematic_login', '1') === '1',
+    user_registration: db.getSetting('user_registration', '0') === '1'
+  });
+});
+
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
@@ -53,6 +65,19 @@ app.post('/api/auth/login', (req, res) => {
 
 app.get('/api/me', auth, (req, res) => res.json(req.user));
 
+app.post('/api/auth/register', async (req, res) => {
+  if (db.getSetting('user_registration', '0') !== '1') return res.status(403).json({ error: 'Registration is disabled' });
+  const { username, email, password } = req.body;
+  if (!username || !password || password.length < 6) return res.status(400).json({ error: 'Username and a password (6+ chars) are required' });
+  try {
+    const hash = bcrypt.hashSync(password, 10);
+    const info = db.prepare(`INSERT INTO users (username,email,password_hash,role,admin_enabled) VALUES (?,?,?,?,0)`)
+      .run(username, email || '', hash, 'user');
+    const token = jwt.sign({ id: info.lastInsertRowid, username, role: 'user', admin_enabled: false }, JWT_SECRET, { expiresIn: '12h' });
+    res.json({ token, user: { id: info.lastInsertRowid, username, role: 'user', admin_enabled: false } });
+  } catch (e) { res.status(400).json({ error: 'Username already taken' }); }
+});
+
 // live host capacity, used by the create-server form to cap sliders correctly
 app.get('/api/system/info', auth, async (req, res) => {
   try { res.json(await dock.getSystemInfo()); }
@@ -65,10 +90,26 @@ app.get('/api/mc-versions', auth, async (req, res) => {
 
 // ---------- panel-wide settings ----------
 app.get('/api/settings', auth, (req, res) => {
-  res.json({ playit_enabled: db.getSetting('playit_enabled', '1') === '1' });
+  res.json({
+    playit_enabled: db.getSetting('playit_enabled', '1') === '1',
+    onboarding_enabled: db.getSetting('onboarding_enabled', '1') === '1',
+    cinematic_login: db.getSetting('cinematic_login', '1') === '1',
+    user_registration: db.getSetting('user_registration', '0') === '1',
+    panel_name: db.getSetting('panel_name', 'Panelfy'),
+    panel_logo: db.getSetting('panel_logo', ''),
+    login_bg: db.getSetting('login_bg', ''),
+    login_bg_blur: db.getSetting('login_bg_blur', '0')
+  });
 });
 app.patch('/api/settings', auth, requireAdmin, (req, res) => {
-  if (req.body.playit_enabled !== undefined) db.setSetting('playit_enabled', req.body.playit_enabled ? '1' : '0');
+  const b = req.body;
+  if ((b.panel_logo && b.panel_logo.length > 6_000_000) || (b.login_bg && b.login_bg.length > 6_000_000)) {
+    return res.status(413).json({ error: 'Image is too large — keep it under ~4MB' });
+  }
+  const boolKeys = ['playit_enabled', 'onboarding_enabled', 'cinematic_login', 'user_registration'];
+  const textKeys = ['panel_name', 'panel_logo', 'login_bg', 'login_bg_blur'];
+  boolKeys.forEach(k => { if (b[k] !== undefined) db.setSetting(k, b[k] ? '1' : '0'); });
+  textKeys.forEach(k => { if (b[k] !== undefined) db.setSetting(k, b[k]); });
   res.json({ ok: true });
 });
 

@@ -51,6 +51,23 @@ function setSetting(key, value) {
 }
 // default: playit tunnels enabled panel-wide
 if (getSetting('playit_enabled', null) === null) setSetting('playit_enabled', '1');
+if (getSetting('onboarding_enabled', null) === null) setSetting('onboarding_enabled', '1');
+if (getSetting('cinematic_login', null) === null) setSetting('cinematic_login', '1');
+if (getSetting('user_registration', null) === null) setSetting('user_registration', '0');
+if (getSetting('panel_name', null) === null) setSetting('panel_name', 'Panelfy');
+if (getSetting('panel_logo', null) === null) setSetting('panel_logo', '');
+if (getSetting('login_bg', null) === null) setSetting('login_bg', '');
+if (getSetting('login_bg_blur', null) === null) setSetting('login_bg_blur', '0');
+
+// migrate: add any columns that were introduced after a user's db was first created
+function ensureColumn(table, col, def) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all().map(c => c.name);
+  if (!cols.includes(col)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+}
+ensureColumn('servers', 'rcon_port', 'INTEGER');
+ensureColumn('servers', 'rcon_password', 'TEXT');
+ensureColumn('servers', 'playit_ip', 'TEXT');
+ensureColumn('servers', 'playit_active', 'INTEGER DEFAULT 0');
 
 // seed default owner/admin if no users exist
 const count = db.prepare('SELECT COUNT(*) c FROM users').get().c;

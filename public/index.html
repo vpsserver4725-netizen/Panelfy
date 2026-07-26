@@ -28,6 +28,7 @@ button{font-family:inherit}
 .mrange.m3{opacity:1;fill:#3d2761}
 #loginScreen .cactus{position:absolute;bottom:0;opacity:.9;animation:sway 7s ease-in-out infinite}
 @keyframes sway{0%,100%{transform:rotate(0deg)}50%{transform:rotate(1.2deg)}}
+#loginBgImg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:1}
 #loginBox{position:absolute;right:8%;top:50%;transform:translateY(-50%);width:380px;
   background:rgba(18,14,26,.55);backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.15);
   border-radius:20px;padding:34px;box-shadow:0 20px 60px rgba(0,0,0,.4);z-index:5}
@@ -168,25 +169,40 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 
 <!-- ===== LOGIN ===== -->
 <div id="loginScreen">
-  <div class="sun"></div>
-  <svg class="mrange m1" viewBox="0 0 1440 300" preserveAspectRatio="none" style="height:340px"><path d="M0,180 C200,100 350,220 500,150 C650,90 750,200 900,140 C1050,90 1250,200 1440,130 L1440,300 L0,300 Z"/></svg>
-  <svg class="mrange m2" viewBox="0 0 1440 260" preserveAspectRatio="none" style="height:250px"><path d="M0,200 C180,140 320,230 480,170 C640,120 780,220 960,160 C1120,110 1280,210 1440,150 L1440,260 L0,260 Z"/></svg>
-  <svg class="mrange m3" viewBox="0 0 1440 200" preserveAspectRatio="none" style="height:170px"><path d="M0,170 C220,110 380,180 560,120 C720,80 900,170 1080,110 C1240,70 1340,150 1440,110 L1440,200 L0,200 Z"/></svg>
-  <svg class="cactus" style="left:6%" width="46" height="130" viewBox="0 0 46 130"><rect x="18" y="20" width="10" height="110" rx="5" fill="#241539"/><rect x="0" y="45" width="10" height="45" rx="5" fill="#241539"/><rect x="36" y="55" width="10" height="35" rx="5" fill="#241539"/></svg>
-  <svg class="cactus" style="left:16%;animation-delay:1s" width="34" height="90" viewBox="0 0 34 90"><rect x="12" y="15" width="10" height="75" rx="5" fill="#2c1b45"/><rect x="0" y="35" width="10" height="30" rx="5" fill="#2c1b45"/></svg>
-  <svg class="cactus" style="right:10%;animation-delay:2s" width="50" height="140" viewBox="0 0 50 140"><rect x="20" y="20" width="10" height="120" rx="5" fill="#241539"/><rect x="0" y="50" width="10" height="45" rx="5" fill="#241539"/><rect x="40" y="60" width="10" height="40" rx="5" fill="#241539"/></svg>
+  <div id="loginAnim">
+    <div class="sun"></div>
+    <svg class="mrange m1" viewBox="0 0 1440 300" preserveAspectRatio="none" style="height:340px"><path d="M0,180 C200,100 350,220 500,150 C650,90 750,200 900,140 C1050,90 1250,200 1440,130 L1440,300 L0,300 Z"/></svg>
+    <svg class="mrange m2" viewBox="0 0 1440 260" preserveAspectRatio="none" style="height:250px"><path d="M0,200 C180,140 320,230 480,170 C640,120 780,220 960,160 C1120,110 1280,210 1440,150 L1440,260 L0,260 Z"/></svg>
+    <svg class="mrange m3" viewBox="0 0 1440 200" preserveAspectRatio="none" style="height:170px"><path d="M0,170 C220,110 380,180 560,120 C720,80 900,170 1080,110 C1240,70 1340,150 1440,110 L1440,200 L0,200 Z"/></svg>
+    <svg class="cactus" style="left:6%" width="46" height="130" viewBox="0 0 46 130"><rect x="18" y="20" width="10" height="110" rx="5" fill="#241539"/><rect x="0" y="45" width="10" height="45" rx="5" fill="#241539"/><rect x="36" y="55" width="10" height="35" rx="5" fill="#241539"/></svg>
+    <svg class="cactus" style="left:16%;animation-delay:1s" width="34" height="90" viewBox="0 0 34 90"><rect x="12" y="15" width="10" height="75" rx="5" fill="#2c1b45"/><rect x="0" y="35" width="10" height="30" rx="5" fill="#2c1b45"/></svg>
+    <svg class="cactus" style="right:10%;animation-delay:2s" width="50" height="140" viewBox="0 0 50 140"><rect x="20" y="20" width="10" height="120" rx="5" fill="#241539"/><rect x="0" y="50" width="10" height="45" rx="5" fill="#241539"/><rect x="40" y="60" width="10" height="40" rx="5" fill="#241539"/></svg>
+  </div>
+  <div id="loginBgImg"></div>
 
   <div id="loginBox">
-    <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 16L8 9L12 14L16 7L21 16" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="6" r="2.2" fill="white"/></svg></div>
-    <h2>Panelfy Login</h2>
+    <div class="logo" id="loginLogo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M3 16L8 9L12 14L16 7L21 16" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="17" cy="6" r="2.2" fill="white"/></svg></div>
+    <h2 id="loginTitle">Panelfy Login</h2>
     <p>Welcome to the nature</p>
-    <div class="field"><label>Username</label><input id="lUser" value="admin" autocomplete="username"></div>
-    <div class="field"><label>Password</label><input id="lPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
-    <button class="btn" onclick="doLogin()">Sign In</button>
+    <div id="loginFields">
+      <div class="field"><label>Username</label><input id="lUser" value="admin" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input id="lPass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="btn" onclick="doLogin()">Sign In</button>
+    </div>
+    <div id="regFields" class="hidden">
+      <div class="field"><label>Username</label><input id="rUser"></div>
+      <div class="field"><label>Email</label><input id="rEmail"></div>
+      <div class="field"><label>Password (6+ chars)</label><input id="rPass" type="password"></div>
+      <button class="btn" onclick="doRegister()">Create Account</button>
+    </div>
     <div id="loginErr"></div>
     <div id="loginHint">Default: admin / changeme123 — change this after first login</div>
+    <div id="regToggleRow" class="hidden" style="text-align:center;margin-top:14px;font-size:12px;color:rgba(255,255,255,.6)">
+      <span id="regToggleText">New here?</span> <a href="#" id="regToggleLink" onclick="toggleRegisterMode();return false" style="color:var(--teal)">Create an account</a>
+    </div>
   </div>
 </div>
+
 
 <!-- ===== ONBOARDING TOUR ===== -->
 <div class="tour-bg hidden" id="tourBg">
@@ -259,13 +275,64 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
       </div>
 
       <div id="page-settings" class="hidden">
-        <div class="card">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <div><b style="font-size:14px">⇄ playit.gg Tunnels (panel-wide)</b><div style="color:var(--sub);font-size:12px;margin-top:3px">Turn off to hide and block the playit.gg tunnel feature for every user</div></div>
-            <div class="toggle" id="globalPlayitToggle" onclick="toggleGlobalPlayit()"><i></i></div>
+        <div class="card" style="margin-bottom:16px">
+          <b style="font-size:14px">▣ Branding &amp; Identity</b>
+          <div class="row2" style="margin-top:14px;align-items:end">
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:6px">Panel Name</label>
+              <div style="display:flex;gap:8px"><input id="settPanelName" style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px"><button class="btn sm" onclick="saveBrandField('panel_name', settPanelName.value)">Save</button></div>
+            </div>
+            <div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-bottom:6px">Panel Logo</label>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div id="logoPreview" style="width:46px;height:46px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden"></div>
+                <input type="file" id="logoFile" accept="image/*" class="hidden" onchange="uploadImage('panel_logo', this.files[0])">
+                <button class="btn sm ghost" onclick="logoFile.click()">Upload Logo</button>
+                <button class="btn sm danger" onclick="saveBrandField('panel_logo','')">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid g2" style="grid-template-columns:1fr 1fr">
+          <div class="card">
+            <b style="font-size:14px">⟳ Platform Features</b>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><b style="font-size:13px">playit.gg Tunnel Integration</b><div class="hint">Allow users to expose Minecraft servers to the internet</div></div>
+                <div class="toggle" id="globalPlayitToggle" onclick="toggleGlobalPlayit()"><i></i></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><b style="font-size:13px">Onboarding Tutorial</b><div class="hint">Show the guided tour to new users on first login</div></div>
+                <div class="toggle" id="onboardToggle" onclick="toggleSetting('onboarding_enabled','onboardToggle')"><i></i></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><b style="font-size:13px">Cinematic Login Intro</b><div class="hint">Animated sunset scene on the login screen</div></div>
+                <div class="toggle" id="cinematicToggle" onclick="toggleSetting('cinematic_login','cinematicToggle')"><i></i></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><b style="font-size:13px">User Registration</b><div class="hint">Allow new users to self-register</div></div>
+                <div class="toggle" id="regToggle" onclick="toggleSetting('user_registration','regToggle')"><i></i></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <b style="font-size:14px">▣ Background Configuration</b>
+            <div style="margin-top:14px">
+              <div id="bgPreview" style="width:100%;height:130px;border-radius:11px;background:var(--panel2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;background-size:cover;background-position:center"></div>
+              <input type="file" id="bgFile" accept="image/*" class="hidden" onchange="uploadImage('login_bg', this.files[0])">
+              <div style="display:flex;gap:8px;margin-top:10px">
+                <button class="btn sm ghost" style="flex:1" onclick="bgFile.click()">Upload Background</button>
+                <button class="btn sm danger" onclick="saveBrandField('login_bg','')">Default Theme</button>
+              </div>
+              <label style="font-size:11px;color:var(--sub);display:block;margin-top:14px">Background Blur: <span id="blurVal">0</span>px</label>
+              <input type="range" id="blurRange" min="0" max="20" value="0" style="width:100%" oninput="document.getElementById('blurVal').textContent=this.value" onchange="saveBrandField('login_bg_blur', this.value)">
+            </div>
           </div>
         </div>
       </div>
+
 
       <div id="page-detail" class="hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
@@ -442,6 +509,7 @@ let mcVersionsCache = [];
 let consoleWs = null;
 let fCpuAuto = true;
 let playitEnabled = true;
+let onboardingEnabled = true;
 let currentDetailServer = null;
 let currentFilesPath = '.';
 let currentEditingFile = null;
@@ -486,6 +554,69 @@ document.getElementById('fCpuPct').addEventListener('focus', ()=>{ fCpuAuto=fals
 
 function authHeaders(){ return {'Authorization':'Bearer '+token,'Content-Type':'application/json'}; }
 
+function applyBranding(st){
+  document.title = st.panel_name || 'Panelfy';
+  document.querySelectorAll('#brand span').forEach(el=>el.textContent = st.panel_name || 'Panelfy');
+  document.getElementById('loginTitle').textContent = (st.panel_name || 'Panelfy') + ' Login';
+  if(st.panel_logo){
+    const img = `<img src="${st.panel_logo}" style="width:100%;height:100%;object-fit:cover;border-radius:9px">`;
+    document.querySelectorAll('#brand .logo, #loginLogo').forEach(el=>el.innerHTML = img);
+  }
+  if(st.login_bg){
+    document.getElementById('loginBgImg').style.backgroundImage = `url(${st.login_bg})`;
+    document.getElementById('loginBgImg').style.filter = `blur(${st.login_bg_blur||0}px)`;
+  }
+  document.getElementById('loginAnim').style.display = st.cinematic_login===false ? 'none' : '';
+  if(st.user_registration){ document.getElementById('regToggleRow').classList.remove('hidden'); }
+}
+
+async function loadPublicBranding(){
+  try{ applyBranding(await (await fetch('/api/branding')).json()); }catch(_){}
+}
+loadPublicBranding();
+
+function toggleRegisterMode(){
+  const showingReg = !document.getElementById('regFields').classList.contains('hidden');
+  document.getElementById('loginFields').classList.toggle('hidden', !showingReg);
+  document.getElementById('regFields').classList.toggle('hidden', showingReg);
+  document.getElementById('regToggleText').textContent = showingReg ? 'New here?' : 'Already have an account?';
+  document.getElementById('regToggleLink').textContent = showingReg ? 'Create an account' : 'Sign in';
+  document.getElementById('loginErr').textContent = '';
+}
+async function doRegister(){
+  const username = document.getElementById('rUser').value;
+  const email = document.getElementById('rEmail').value;
+  const password = document.getElementById('rPass').value;
+  const r = await fetch('/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,email,password})});
+  const d = await r.json();
+  if(!r.ok){ document.getElementById('loginErr').textContent = d.error||'Registration failed'; return; }
+  token = d.token; localStorage.setItem('panelfy_token', token);
+  me = d.user;
+  boot();
+}
+
+async function saveBrandField(key, value){
+  const r = await fetch('/api/settings',{method:'PATCH',headers:authHeaders(),body:JSON.stringify({[key]:value})});
+  if(!r.ok){ const d = await r.json(); alert(d.error); return; }
+  if(key==='panel_logo') document.getElementById('logoPreview').innerHTML = value ? `<img src="${value}" style="width:100%;height:100%;object-fit:cover">` : '';
+  if(key==='login_bg') document.getElementById('bgPreview').style.backgroundImage = value ? `url(${value})` : '';
+  applyBranding({ panel_name: document.getElementById('settPanelName').value, panel_logo: key==='panel_logo'?value:undefined, login_bg: key==='login_bg'?value:undefined, login_bg_blur: document.getElementById('blurRange').value, cinematic_login: document.getElementById('cinematicToggle').classList.contains('on'), user_registration: document.getElementById('regToggle').classList.contains('on') });
+}
+function uploadImage(key, file){
+  if(!file) return;
+  if(file.size > 4_000_000){ alert('Please use an image under 4MB'); return; }
+  const reader = new FileReader();
+  reader.onload = () => saveBrandField(key, reader.result);
+  reader.readAsDataURL(file);
+}
+async function toggleSetting(key, elId){
+  const el = document.getElementById(elId);
+  const newVal = !el.classList.contains('on');
+  el.classList.toggle('on', newVal);
+  await fetch('/api/settings',{method:'PATCH',headers:authHeaders(),body:JSON.stringify({[key]:newVal})});
+  if(key==='onboarding_enabled') onboardingEnabled = newVal;
+}
+
 async function doLogin(){
   const username = document.getElementById('lUser').value;
   const password = document.getElementById('lPass').value;
@@ -517,6 +648,16 @@ async function boot(){
     const st = await (await fetch('/api/settings',{headers:authHeaders()})).json();
     playitEnabled = !!st.playit_enabled;
     document.getElementById('globalPlayitToggle').classList.toggle('on', playitEnabled);
+    document.getElementById('onboardToggle').classList.toggle('on', !!st.onboarding_enabled);
+    document.getElementById('cinematicToggle').classList.toggle('on', !!st.cinematic_login);
+    document.getElementById('regToggle').classList.toggle('on', !!st.user_registration);
+    document.getElementById('settPanelName').value = st.panel_name || 'Panelfy';
+    document.getElementById('blurRange').value = st.login_bg_blur || 0;
+    document.getElementById('blurVal').textContent = st.login_bg_blur || 0;
+    if(st.panel_logo) document.getElementById('logoPreview').innerHTML = `<img src="${st.panel_logo}" style="width:100%;height:100%;object-fit:cover">`;
+    if(st.login_bg) document.getElementById('bgPreview').style.backgroundImage = `url(${st.login_bg})`;
+    applyBranding(st);
+    onboardingEnabled = !!st.onboarding_enabled;
   }catch(_){}
 
   try{ mcVersionsCache = await (await fetch('/api/mc-versions',{headers:authHeaders()})).json(); }catch(_){ mcVersionsCache=['1.21.4','1.20.6','1.8.9']; }
@@ -830,6 +971,7 @@ const TOUR_STEPS = [
 ];
 let tourStep = 0;
 function maybeShowTour(){
+  if(!onboardingEnabled) return;
   if(localStorage.getItem('panelfy_tour_seen')) return;
   tourStep = 0;
   renderTourStep();
