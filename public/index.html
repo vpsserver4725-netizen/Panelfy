@@ -517,8 +517,15 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
           <div class="filesToolbar">
             <input id="filesSearch" placeholder="🔍 Search files..." style="flex:1;min-width:180px" oninput="renderFiles()">
             <input type="file" id="uploadFileInput" class="hidden" onchange="doUploadFile(this.files[0])">
+            <button class="btn sm ghost" onclick="filesNewFile()">+ New File</button>
             <button class="btn sm ghost" onclick="filesMkdir()">+ New Folder</button>
             <button class="btn sm" onclick="uploadFileInput.click()">⬆ Upload</button>
+          </div>
+          <div class="filesToolbar hidden" id="filesBulkBar" style="margin-top:0">
+            <span class="hint" id="filesSelCount"></span>
+            <button class="btn sm ghost" onclick="archiveSelected()">🗜 Archive Selected</button>
+            <button class="btn sm danger" onclick="bulkDeleteSelected()">Delete Selected</button>
+            <button class="btn sm ghost" onclick="clearSelection()">Clear</button>
           </div>
           <div id="filesList"></div>
         </div>
@@ -594,6 +601,10 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
             <div class="playit-ip" id="scPlayitIpText"></div>
           </div>
         </div>
+        <div class="consolewrap" style="margin-top:14px">
+          <div class="consoleheader"><span class="cdot" style="background:#f87171"></span><span class="cdot" style="background:#fbbf24"></span><span class="cdot" style="background:#4ade80"></span><b style="margin-left:8px;font-size:12px">PLAYIT LOGS</b></div>
+          <div id="playitConsole" style="background:#000;padding:16px;height:240px;color:#c9c9c9;font-family:'Consolas',monospace;font-size:12px;overflow-y:auto;white-space:pre-wrap">Waiting for output…</div>
+        </div>
       </div>
 
       <div id="dtab-backup" class="hidden">
@@ -609,8 +620,8 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
         </div>
         <div class="card">
           <b style="font-size:13px">Import Server Setup</b>
-          <div class="hint">Upload a .tar or .tar.gz archive of a data directory to extract straight into this server (overwrites matching files). Server should be stopped first.</div>
-          <input type="file" id="importBackupInput" accept=".tar,.gz,.tgz" class="hidden" onchange="doImportBackup(this.files[0])">
+          <div class="hint">Upload a .tar, .tar.gz, or .zip archive of a data directory to extract straight into this server (overwrites matching files). Server should be stopped first.</div>
+          <input type="file" id="importBackupInput" accept=".tar,.gz,.tgz,.zip" class="hidden" onchange="doImportBackup(this.files[0])">
           <button class="btn sm ghost" style="margin-top:10px" onclick="importBackupInput.click()">⬆ Upload &amp; Import</button>
         </div>
       </div>
@@ -696,6 +707,14 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px"><b style="font-size:13px">Grant admin access</b><div class="toggle" id="uAdminToggle" onclick="this.classList.toggle('on')"><i></i></div></div>
     </div>
     <div class="mfoot"><button class="btn ghost" onclick="closeModal('userModal')">Cancel</button><button class="btn" onclick="addUser()">Add User</button></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="versionPickerModal">
+  <div class="modal">
+    <h3 id="versionPickerTitle">Choose a version</h3>
+    <div class="mbody"><div id="versionPickerList"></div></div>
+    <div class="mfoot"><button class="btn ghost" onclick="closeModal('versionPickerModal')">Cancel</button></div>
   </div>
 </div>
 
@@ -1092,6 +1111,7 @@ function closeServerDetail(){
   document.getElementById('serverContext').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   if(consoleWs){ consoleWs.close(); consoleWs=null; }
+  if(playitWs){ playitWs.close(); playitWs=null; }
   if(statsInterval){ clearInterval(statsInterval); statsInterval=null; }
   document.querySelectorAll('#side nav a').forEach(x=>x.classList.remove('active'));
   document.querySelector('#side nav a[data-p="servers"]').classList.add('active');
@@ -1306,6 +1326,7 @@ async function searchPluginsUI(offset){
       <div class="pi" style="${p.icon?`background-image:url('${p.icon}')`:''}"></div>
       <div style="flex:1;min-width:0"><b style="font-size:13px">${p.title}</b><div class="hint">${(p.description||'').slice(0,90)}</div></div>
       <div class="hint" style="width:70px;text-align:right">${p.downloads?p.downloads.toLocaleString()+' dl':''}</div>
+      <button class="btn sm ghost" onclick="openVersionPicker('${p.source}','${p.id}','${p.title.replace(/'/g,"")}')">Version</button>
       <button class="btn sm" onclick="installPlugin('${p.source}','${p.id}','${p.title.replace(/'/g,"")}')">Install</button>
     </div>`).join('') || '<div class="hint">No results — try a different search term.</div>';
 
@@ -1314,11 +1335,24 @@ async function searchPluginsUI(offset){
   if(offset>0) pager.innerHTML += `<button class="btn sm ghost" onclick="searchPluginsUI(${Math.max(0,offset-PLUGIN_PAGE_SIZE)})">← Prev</button>`;
   if(results.length===PLUGIN_PAGE_SIZE) pager.innerHTML += `<button class="btn sm ghost" onclick="searchPluginsUI(${offset+PLUGIN_PAGE_SIZE})">Next →</button>`;
 }
-async function installPlugin(source, projectId, title){
-  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({projectId, source})});
+async function installPlugin(source, projectId, title, versionId){
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({projectId, source, versionId})});
   const d = await r.json();
   alert(r.ok ? `Installed ${title} (${d.filename}). ${d.note}` : d.error);
 }
+async function openVersionPicker(source, projectId, title){
+  document.getElementById('versionPickerTitle').textContent = 'Choose a version — ' + title;
+  document.getElementById('versionPickerList').innerHTML = '<div class="hint">Loading versions…</div>';
+  document.getElementById('versionPickerModal').classList.add('show');
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/${source}/${projectId}/versions`,{headers:authHeaders()});
+  const d = await r.json();
+  if(!r.ok){ document.getElementById('versionPickerList').innerHTML = `<div class="hint">${d.error}</div>`; return; }
+  document.getElementById('versionPickerList').innerHTML = d.map(v=>`
+    <div class="fileRow" onclick="installPlugin('${source}','${projectId}','${title.replace(/'/g,"")}','${v.id}');closeModal('versionPickerModal')">
+      <div class="fic">🏷</div><div class="fname">${v.label}</div>
+    </div>`).join('') || '<div class="hint">No versions found.</div>';
+}
+
 
 /* ---- files ---- */
 async function loadFiles(){
@@ -1346,7 +1380,18 @@ function renderBreadcrumb(){
   parts.forEach(p=>{ acc += (acc?'/':'')+p; html += ` <span class="crumbBtn" onclick="filesGoto('${acc}')">${p}</span> /`; });
   document.getElementById('filesBreadcrumb').innerHTML = html;
 }
-function filesGoto(p){ currentFilesPath = p; loadFiles(); }
+let selectedFiles = new Set();
+function filesGoto(p){ currentFilesPath = p; selectedFiles.clear(); loadFiles(); }
+function toggleFileSelect(p, checked){
+  if(checked) selectedFiles.add(p); else selectedFiles.delete(p);
+  updateSelBar();
+}
+function updateSelBar(){
+  const bar = document.getElementById('filesBulkBar');
+  bar.classList.toggle('hidden', selectedFiles.size===0);
+  document.getElementById('filesSelCount').textContent = selectedFiles.size + ' selected';
+}
+function clearSelection(){ selectedFiles.clear(); renderFiles(); }
 function renderFiles(){
   renderBreadcrumb();
   const q = (document.getElementById('filesSearch')?.value || '').toLowerCase();
@@ -1356,21 +1401,62 @@ function renderFiles(){
   const filtered = filesEntries.filter(e=>e.name.toLowerCase().includes(q));
   rows += filtered.map(e=>{
     const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + e.name;
-    return `<div class="fileRow" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}">
-      <div class="fic ${e.isDir?'dir':''}">${fileIcon(e.name, e.isDir)}</div>
-      <div class="fname">${e.name}</div>
-      ${!e.isDir?`<div class="fsize">${(e.size/1024).toFixed(1)} KB</div><button class="btn sm danger" onclick="event.stopPropagation();deleteFile('${p}')">Del</button>`:''}
+    const checked = selectedFiles.has(p) ? 'checked' : '';
+    return `<div class="fileRow">
+      <input type="checkbox" ${checked} onclick="event.stopPropagation();toggleFileSelect('${p}',this.checked)" style="accent-color:var(--accent)">
+      <div class="fic ${e.isDir?'dir':''}" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}" style="cursor:pointer">${fileIcon(e.name, e.isDir)}</div>
+      <div class="fname" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}" style="cursor:pointer">${e.name}</div>
+      ${!e.isDir?`<div class="fsize">${(e.size/1024).toFixed(1)} KB</div>`:''}
+      <button class="btn sm ghost" onclick="event.stopPropagation();renameFile('${p}','${e.name}')">Rename</button>
+      <button class="btn sm danger" onclick="event.stopPropagation();deleteFile('${p}')">Del</button>
     </div>`;
   }).join('');
   list.innerHTML = rows || '<div class="empty" style="border:none">Empty folder</div>';
+  updateSelBar();
 }
-function filesOpen(p){ currentFilesPath = p; loadFiles(); }
-function filesUp(){ const parts = currentFilesPath.split('/'); parts.pop(); currentFilesPath = parts.join('/') || '.'; loadFiles(); }
+function filesOpen(p){ currentFilesPath = p; selectedFiles.clear(); loadFiles(); }
+function filesUp(){ const parts = currentFilesPath.split('/'); parts.pop(); currentFilesPath = parts.join('/') || '.'; selectedFiles.clear(); loadFiles(); }
 async function filesMkdir(){
   const name = prompt('New folder name:');
   if(!name) return;
   const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + name;
   await fetch(`/api/servers/${currentDetailServer.id}/files/mkdir`,{method:'POST',headers:authHeaders(),body:JSON.stringify({path:p})});
+  loadFiles();
+}
+async function filesNewFile(){
+  const name = prompt('New file name (e.g. notes.txt):');
+  if(!name) return;
+  const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + name;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/files/write`,{method:'POST',headers:authHeaders(),body:JSON.stringify({path:p, content:''})});
+  if(!r.ok){ const d=await r.json(); alert(d.error); return; }
+  await loadFiles();
+  openFile(p);
+}
+async function renameFile(p, oldName){
+  const newName = prompt('Rename to:', oldName);
+  if(!newName || newName===oldName) return;
+  const dir = p.includes('/') ? p.slice(0, p.lastIndexOf('/')+1) : '';
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/files/rename`,{method:'POST',headers:authHeaders(),body:JSON.stringify({from:p, to:dir+newName})});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  loadFiles();
+}
+async function bulkDeleteSelected(){
+  if(!selectedFiles.size) return;
+  if(!confirm(`Delete ${selectedFiles.size} item(s)? This can't be undone.`)) return;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/files/bulk-delete`,{method:'POST',headers:authHeaders(),body:JSON.stringify({paths:[...selectedFiles]})});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  selectedFiles.clear();
+  loadFiles();
+}
+async function archiveSelected(){
+  if(!selectedFiles.size) return;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/files/archive`,{method:'POST',headers:authHeaders(),body:JSON.stringify({paths:[...selectedFiles]})});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  alert('Created ' + d.archiveName);
+  selectedFiles.clear();
   loadFiles();
 }
 async function deleteFile(p){
@@ -1488,6 +1574,7 @@ async function saveServerSettings(){
 }
 
 /* ---- playit tab ---- */
+let playitWs = null;
 function loadScPlayit(){
   const s = currentDetailServer;
   document.getElementById('scPlayitStatus').textContent = s.playit_active ? 'Connected' : 'Stopped';
@@ -1495,6 +1582,23 @@ function loadScPlayit(){
   document.getElementById('scPlayitIpBox').classList.toggle('hidden', !s.playit_active);
   if(s.playit_active) document.getElementById('scPlayitIpText').textContent = s.playit_ip || 'Connecting…';
   if(!playitEnabled){ document.getElementById('scPlayitBtn').disabled = true; document.getElementById('scPlayitBtn').title='Disabled panel-wide in Settings'; }
+  connectPlayitConsole();
+}
+function connectPlayitConsole(){
+  if(playitWs) playitWs.close();
+  const box = document.getElementById('playitConsole');
+  box.textContent = 'Waiting for output…';
+  let first = true;
+  const proto = location.protocol==='https:'?'wss':'ws';
+  playitWs = new WebSocket(`${proto}://${location.host}/ws/playit?id=${currentDetailServer.id}&token=${token}`);
+  playitWs.onmessage = (ev)=>{
+    const msg = JSON.parse(ev.data);
+    if(msg.type==='log'){
+      if(first){ box.textContent=''; first=false; }
+      box.textContent += msg.data;
+      box.scrollTop = box.scrollHeight;
+    }
+  };
 }
 async function togglePlayitFromDetail(){
   if(!playitEnabled){ alert('playit.gg tunnels are disabled panel-wide. An admin can turn them on in Settings.'); return; }

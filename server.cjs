@@ -12,7 +12,7 @@ const dock = require('./docker.cjs');
 const playit = require('./playit.cjs');
 const { getMcVersions } = require('./mcversions.cjs');
 const { rconCommand } = require('./rcon.cjs');
-const { searchPlugins, searchSpiget, getVersionForServer, getSpigetDownload } = require('./plugins.cjs');
+const { searchPlugins, searchSpiget, getVersionForServer, getSpigetDownload, listModrinthVersions, listSpigetVersions } = require('./plugins.cjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'panelfy-dev-secret-change-me';
 const PORT = process.env.PORT || 8080;
@@ -355,6 +355,40 @@ app.delete('/api/servers/:id/files', auth, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Bulk delete (Pterodactyl-style checkbox multi-select)
+app.post('/api/servers/:id/files/bulk-delete', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const paths = (req.body.paths || []).map(safePath).filter(p => p && p !== '.');
+  if (!paths.length) return res.status(400).json({ error: 'No paths given' });
+  try {
+    const cmd = paths.map(p => `rm -rf "${p}"`).join(' && ');
+    await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && ${cmd}`);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/servers/:id/files/rename', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const from = safePath(req.body.from);
+  const to = safePath(req.body.to);
+  if (!from || !to) return res.status(400).json({ error: 'from and to are required' });
+  try { await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && mv "${from}" "${to}"`); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Zip selected files/folders into an archive in-place (Pterodactyl "Create Archive")
+app.post('/api/servers/:id/files/archive', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const paths = (req.body.paths || []).map(safePath).filter(p => p && p !== '.');
+  if (!paths.length) return res.status(400).json({ error: 'No paths given' });
+  const archiveName = `archive-${Date.now()}.zip`;
+  try {
+    const quoted = paths.map(p => `"${p}"`).join(' ');
+    await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && (which zip >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq zip) || (apk add --no-cache zip)) ; zip -r -q "${archiveName}" ${quoted}`);
+    res.json({ ok: true, archiveName });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ---------- player manager (RCON, Minecraft servers only) ----------
 app.get('/api/servers/:id/players', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
@@ -396,13 +430,23 @@ app.get('/api/servers/:id/plugins/search', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/servers/:id/plugins/:source/:projectId/versions', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  try {
+    const versions = req.params.source === 'spigot'
+      ? await listSpigetVersions(req.params.projectId)
+      : await listModrinthVersions(req.params.projectId);
+    res.json(versions);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/servers/:id/plugins/install', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
   if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
   try {
     const { downloadUrl, filename } = req.body.source === 'spigot'
-      ? await getSpigetDownload(req.body.projectId)
-      : await getVersionForServer(req.body.projectId, s.version, s.software);
+      ? await getSpigetDownload(req.body.projectId, req.body.versionId)
+      : await getVersionForServer(req.body.projectId, s.version, s.software, req.body.versionId);
     await dock.execInContainer(s.container_id, `mkdir -p /data/plugins && wget -q -O "/data/plugins/${filename}" "${downloadUrl}"`);
     res.json({ ok: true, filename, note: 'Installed — restart the server to load it.' });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -545,10 +589,20 @@ app.post('/api/servers/:id/backups/import', auth, async (req, res) => {
   const base64 = (req.body.base64 || '').replace(/^data:[^,]+,/, '');
   if (!base64) return res.status(400).json({ error: 'No file data received' });
   try {
-    const tmp = path.join(BACKUPS_DIR, `import-${s.id}-${Date.now()}.tar`);
-    fs.writeFileSync(tmp, Buffer.from(base64, 'base64'));
-    await dock.restoreFromFile(s.container_id, dataDir(s), tmp);
-    fs.unlinkSync(tmp);
+    const buf = Buffer.from(base64, 'base64');
+    const isZip = buf[0] === 0x50 && buf[1] === 0x4B; // 'PK' magic bytes
+    if (isZip) {
+      const filename = `import-${Date.now()}.zip`;
+      await dock.execInContainer(s.container_id, `mkdir -p ${dataDir(s)}`);
+      const b64ForExec = buf.toString('base64');
+      await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && echo '${b64ForExec}' | base64 -d > "${filename}"`);
+      await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && (which unzip >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq unzip) || (apk add --no-cache unzip)) ; unzip -o -q "${filename}" && rm -f "${filename}"`);
+    } else {
+      const tmp = path.join(BACKUPS_DIR, `import-${s.id}-${Date.now()}.tar`);
+      fs.writeFileSync(tmp, buf);
+      await dock.restoreFromFile(s.container_id, dataDir(s), tmp);
+      fs.unlinkSync(tmp);
+    }
     res.json({ ok: true, note: 'Imported — restart the server to pick up the imported files.' });
   } catch (e) { res.status(500).json({ error: 'Import failed: ' + e.message }); }
 });
@@ -570,7 +624,19 @@ app.delete('/api/setups/:id', auth, requireAdmin, (req, res) => {
 
 
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws/console' });
+const wss = new WebSocketServer({ noServer: true });
+const wssPlayit = new WebSocketServer({ noServer: true });
+
+server.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url, 'http://x');
+  if (pathname === '/ws/console') {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+  } else if (pathname === '/ws/playit') {
+    wssPlayit.handleUpgrade(req, socket, head, (ws) => wssPlayit.emit('connection', ws, req));
+  } else {
+    socket.destroy();
+  }
+});
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
@@ -588,6 +654,23 @@ wss.on('connection', (ws, req) => {
       if (msg.type === 'cmd') dock.sendCommand(s.container_id, msg.data);
     } catch {}
   });
+});
+
+wssPlayit.on('connection', (ws, req) => {
+  const url = new URL(req.url, 'http://x');
+  const token = url.searchParams.get('token');
+  const id = url.searchParams.get('id');
+  let user;
+  try { user = jwt.verify(token, JWT_SECRET); } catch { return ws.close(); }
+  const s = db.prepare('SELECT * FROM servers WHERE id = ?').get(id);
+  if (!s || (s.owner_id !== user.id && !user.admin_enabled)) return ws.close();
+
+  const entry = playit.status(s.id);
+  if (entry) entry.logs.forEach(line => ws.send(JSON.stringify({ type: 'log', data: line + '\n' })));
+  const unsubscribe = playit.subscribe(s.id, (line) => {
+    if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'log', data: line + '\n' }));
+  });
+  ws.on('close', unsubscribe);
 });
 
 server.listen(PORT, () => console.log(`Panelfy running on http://0.0.0.0:${PORT}`));
