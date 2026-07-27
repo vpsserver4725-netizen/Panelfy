@@ -79,6 +79,26 @@ CREATE TABLE IF NOT EXISTS server_allocations (
   protocol TEXT DEFAULT 'tcp',
   note TEXT
 );
+CREATE TABLE IF NOT EXISTS backups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  server_id INTEGER NOT NULL,
+  filename TEXT NOT NULL,
+  size INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS setups (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  software TEXT,
+  version TEXT,
+  cpu REAL DEFAULT 1,
+  ram REAL DEFAULT 2,
+  disk INTEGER DEFAULT 10,
+  plugin_ids TEXT DEFAULT '[]',
+  created_by INTEGER,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 `);
 
 // seed default owner/admin if no users exist

@@ -174,8 +174,28 @@ async function execInContainer(id, cmd) {
   });
 }
 
+// Backup/restore uses Docker's native tar archive endpoints — no shell tar/gzip
+// commands needed, works the same for any container.
+async function backupToFile(id, containerPath, destFilePath) {
+  const container = docker.getContainer(id);
+  const stream = await container.getArchive({ path: containerPath });
+  const fs = require('fs');
+  await new Promise((resolve, reject) => {
+    const out = fs.createWriteStream(destFilePath);
+    stream.pipe(out);
+    stream.on('error', reject);
+    out.on('finish', resolve);
+    out.on('error', reject);
+  });
+}
+async function restoreFromFile(id, containerPath, srcFilePath) {
+  const container = docker.getContainer(id);
+  const fs = require('fs');
+  await container.putArchive(fs.createReadStream(srcFilePath), { path: containerPath });
+}
+
 module.exports = {
   docker, nextPort, createMcContainer, createNodeContainer,
   startContainer, stopContainer, removeContainer, streamLogs, sendCommand,
-  getSystemInfo, clampResources, execInContainer
+  getSystemInfo, clampResources, execInContainer, backupToFile, restoreFromFile
 };

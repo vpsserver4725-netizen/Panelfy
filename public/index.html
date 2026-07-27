@@ -110,6 +110,8 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .dot.on{background:var(--ok);box-shadow:0 0 8px var(--ok)}.dot.off{background:var(--danger)}
 .tag{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
 .tag.on{background:#0f2a1c;color:var(--ok)}.tag.off{background:#2c1414;color:var(--danger)}
+.tag.copyable{cursor:pointer;font-family:monospace}
+.tag.copyable:hover{filter:brightness(1.3)}
 
 .empty{text-align:center;padding:50px 20px;color:var(--sub);font-size:13px;border:1px dashed var(--line);border-radius:14px}
 
@@ -154,12 +156,22 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .playit-ip{font-family:monospace;background:#0a0a0f;padding:9px 13px;border-radius:9px;display:inline-block;margin:10px 0;color:var(--teal)}
 .dtab{padding:10px 16px;font-size:13px;font-weight:700;color:var(--sub);cursor:pointer;border-bottom:2px solid transparent}
 .dtab.sel{color:var(--teal);border-bottom-color:var(--accent)}
-.fileRow{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
-.fileRow:last-child{border-bottom:none}
-.fileRow:hover{color:var(--teal)}
+.fileRow{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:9px;cursor:pointer;font-size:13px;transition:.1s}
+.fileRow:hover{background:var(--panel2)}
+.fileRow .fic{width:30px;height:30px;border-radius:8px;background:#0a0a0f;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.fileRow .fic.dir{background:rgba(139,92,246,.15)}
+.fileRow .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fileRow .fsize{color:var(--sub);font-size:11px;font-family:monospace;width:70px;text-align:right;flex-shrink:0}
+.filesToolbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.filesToolbar input{background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:9px 12px;border-radius:9px;font-size:12px}
+.crumbBtn{color:var(--sub);cursor:pointer;font-family:monospace;font-size:12px}
+.crumbBtn:hover{color:var(--teal)}
 .pluginRow{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .pluginRow:last-child{border-bottom:none}
-.pluginRow .pi{width:36px;height:36px;border-radius:8px;background:var(--panel2);flex-shrink:0}
+.pluginRow .pi{width:36px;height:36px;border-radius:8px;background:var(--panel2);flex-shrink:0;background-size:cover;background-position:center}
+.sourcetabs{display:flex;gap:8px}
+.sourcetabs button{background:#0a0a0f;border:1px solid var(--line);color:var(--sub);padding:8px 14px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer}
+.sourcetabs button.sel{border-color:var(--accent);background:rgba(139,92,246,.15);color:var(--teal)}
 
 /* ===== server context (dedicated page) ===== */
 #serverContext{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex}
@@ -190,8 +202,11 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .quickcmds button:hover{color:var(--teal);border-color:var(--teal)}
 .quickcmds button.danger{color:var(--danger);border-color:#4a1f1f}
 #cmdRow{padding:12px 14px;border-top:1px solid #1a1a1a;margin:0}
-#console{background:#000;padding:16px;height:280px}
-#console{background:#000;color:#4ade80;font-family:'Consolas',monospace;font-size:12px;padding:15px;height:360px;overflow-y:auto;border-radius:10px;white-space:pre-wrap}
+#console{background:#000;padding:16px;height:280px;color:#c9c9c9;font-family:'Consolas',monospace;font-size:12px;overflow-y:auto;white-space:pre-wrap}
+.clog-error{color:#f87171}
+.clog-warn{color:#fbbf24}
+.clog-info{color:#8ab4f8}
+.clog-default{color:#9ca3af}
 #cmdRow{display:flex;gap:8px;margin-top:10px}
 #cmdRow input{flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px;font-family:monospace}
 </style>
@@ -260,6 +275,7 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
       <a data-p="playit">⇄ playit.gg Tunnels</a>
       <div class="grp" id="adminGrp">Administration</div>
       <a data-p="users" id="navUsers">◎ Users</a>
+      <a data-p="setups" id="navSetups">🧩 Server Setups</a>
       <a data-p="settings" id="navSettings">⚙ Settings</a>
     </nav>
     <div id="userbox">
@@ -302,6 +318,34 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
         <div class="card" style="padding:0">
           <table><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Admin Access</th><th></th></tr></thead>
           <tbody id="usersTbody"></tbody></table>
+        </div>
+      </div>
+
+      <div id="page-setups" class="hidden">
+        <div class="section-title"><h2>Server Setups</h2></div>
+        <div class="card" style="margin-bottom:16px">
+          <b style="font-size:13px">Create Setup</b>
+          <div class="row2" style="margin-top:10px">
+            <input id="setupName" placeholder="Setup name (e.g. Skyblock Starter)" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+            <select id="setupType" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px" onchange="onSetupTypeChange()"><option value="mc">Minecraft</option><option value="node">Node.js</option></select>
+          </div>
+          <div class="row2" style="margin-top:10px" id="setupMcFields">
+            <select id="setupSoftware" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px"></select>
+            <select id="setupVersion" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px"></select>
+          </div>
+          <div class="row2" style="margin-top:10px">
+            <input id="setupRam" type="number" placeholder="RAM (GB)" value="4" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+            <input id="setupDisk" type="number" placeholder="Disk (GB)" value="10" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+          </div>
+          <div class="field" style="margin-top:10px">
+            <label>Auto-install Plugins <span style="opacity:.6;font-weight:400">(comma-separated Modrinth project slugs/IDs, optional)</span></label>
+            <input id="setupPlugins" placeholder="luckperms, essentialsx, worldedit">
+          </div>
+          <button class="btn sm" style="margin-top:12px" onclick="createSetup()">+ Create Setup</button>
+        </div>
+        <div class="card" style="padding:0">
+          <table><thead><tr><th>Name</th><th>Type</th><th>Software/Version</th><th>Plugins</th><th></th></tr></thead>
+          <tbody id="setupsTbody"></tbody></table>
         </div>
       </div>
 
@@ -387,6 +431,7 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
     <a class="scItem" data-t="alloc" onclick="switchDetailTab('alloc')">🌐 Allocation</a>
     <a class="scItem" data-t="dsettings" onclick="switchDetailTab('dsettings')">⚙ Settings</a>
     <a class="scItem" data-t="scplayit" onclick="switchDetailTab('scplayit')">⇄ Playit Tunnel</a>
+    <a class="scItem" data-t="backup" onclick="switchDetailTab('backup')">🗄 Backup</a>
     <div class="scLabel">NAVIGATION</div>
     <a class="scItem" onclick="closeServerDetail()">↩ Back to Dashboard</a>
   </div>
@@ -395,7 +440,8 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
     <header class="scTop">
       <div><h1 id="detailName" style="font-size:19px;font-weight:800"></h1></div>
       <div style="display:flex;align-items:center;gap:10px">
-        <span id="scPortBadge" class="tag" style="background:var(--panel2);color:var(--sub)"></span>
+        <span id="scPortBadge" class="tag copyable" style="background:var(--panel2);color:var(--sub)" onclick="copyPort()" title="Click to copy port"></span>
+        <span id="scAliasBadge" class="tag copyable hidden" style="background:var(--panel2);color:var(--teal)" onclick="copyPortWithAlias()" title="Click to copy alias:port"></span>
         <span id="scStatusBadge" class="tag off">Offline</span>
         <button class="btn sm ghost" id="scStartBtn2" onclick="scToggleStart()">▷ Start</button>
         <button class="btn sm" onclick="scRestart()" style="background:#3a1f0a">↻ Restart</button>
@@ -449,22 +495,29 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
       <div id="dtab-plugins" class="hidden">
         <div class="card">
           <b style="font-size:17px">Plugin Manager</b>
-          <div class="hint" style="margin-bottom:14px">Search and install plugins from Modrinth.</div>
-          <div style="display:flex;gap:8px">
-            <input id="pluginQuery" placeholder="Search for plugins..." style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
-            <button class="btn sm" onclick="searchPluginsUI()">Search</button>
+          <div class="hint" style="margin-bottom:14px">Search and install plugins from Modrinth or SpigotMC.</div>
+          <div class="sourcetabs" id="pluginSourceTabs">
+            <button class="sel" data-src="modrinth" onclick="setPluginSource('modrinth')">⬥ Modrinth</button>
+            <button data-src="spigot" onclick="setPluginSource('spigot')">🔶 SpigotMC</button>
+            <button data-src="bbyb" onclick="setPluginSource('bbyb')">🅱 BuildByBit</button>
           </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <input id="pluginQuery" placeholder="Search for plugins..." style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px" onkeydown="if(event.key==='Enter')searchPluginsUI(0)">
+            <button class="btn sm" onclick="searchPluginsUI(0)">Search</button>
+          </div>
+          <div id="pluginBbybNote" class="hidden" style="margin-top:12px"><a class="btn sm ghost" target="_blank" id="pluginBbybLink">Search on builtbybit.com ↗</a></div>
           <div id="pluginResults" style="margin-top:14px"></div>
+          <div id="pluginPager" style="display:flex;justify-content:center;gap:8px;margin-top:14px"></div>
         </div>
       </div>
 
       <div id="dtab-files" class="hidden">
         <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px">
-            <div id="filesBreadcrumb" style="font-size:12px;color:var(--sub);font-family:monospace"></div>
-            <input id="filesSearch" placeholder="Search files..." style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:9px 12px;border-radius:9px" oninput="renderFiles()">
+          <div id="filesBreadcrumb" style="margin-bottom:10px"></div>
+          <div class="filesToolbar">
+            <input id="filesSearch" placeholder="🔍 Search files..." style="flex:1;min-width:180px" oninput="renderFiles()">
             <input type="file" id="uploadFileInput" class="hidden" onchange="doUploadFile(this.files[0])">
-            <button class="btn sm ghost" onclick="filesMkdir()">+ Folder</button>
+            <button class="btn sm ghost" onclick="filesMkdir()">+ New Folder</button>
             <button class="btn sm" onclick="uploadFileInput.click()">⬆ Upload</button>
           </div>
           <div id="filesList"></div>
@@ -486,8 +539,9 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
         </div>
         <div class="card">
           <b style="font-size:13px">Add Allocation</b>
-          <div class="row2" style="margin-top:10px">
+          <div class="row2" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr">
             <input id="allocPort" type="number" placeholder="Container port (e.g. 8123)" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
+            <select id="allocProtocol" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px"><option value="tcp">TCP</option><option value="udp">UDP</option></select>
             <input id="allocNote" placeholder="Note (e.g. dynmap)" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
           </div>
           <button class="btn sm" style="margin-top:12px" onclick="addAllocation()">+ Add Allocation</button>
@@ -542,6 +596,25 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
         </div>
       </div>
 
+      <div id="dtab-backup" class="hidden">
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div><b style="font-size:14px">🗄 Backups</b><div class="hint">Snapshots of this server's data directory, stored on the panel host.</div></div>
+            <button class="btn sm" onclick="createBackup()" id="createBackupBtn">+ Create Backup</button>
+          </div>
+        </div>
+        <div class="card" style="padding:0;margin-bottom:14px">
+          <table><thead><tr><th>File</th><th>Size</th><th>Created</th><th></th></tr></thead>
+          <tbody id="backupsTbody"></tbody></table>
+        </div>
+        <div class="card">
+          <b style="font-size:13px">Import Server Setup</b>
+          <div class="hint">Upload a .tar or .tar.gz archive of a data directory to extract straight into this server (overwrites matching files). Server should be stopped first.</div>
+          <input type="file" id="importBackupInput" accept=".tar,.gz,.tgz" class="hidden" onchange="doImportBackup(this.files[0])">
+          <button class="btn sm ghost" style="margin-top:10px" onclick="importBackupInput.click()">⬆ Upload &amp; Import</button>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -551,6 +624,11 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
   <div class="modal">
     <h3>⚡ Deploy New Server</h3>
     <div class="mbody">
+      <div class="field" id="setupPickerField">
+        <label>🧩 Use a Server Setup <span style="opacity:.6;font-weight:400">(optional — pre-fills everything below)</span></label>
+        <select id="fSetup" onchange="applySetup()"><option value="">— Start from scratch —</option></select>
+      </div>
+
       <div class="typechoice"><div class="sel" id="tMc" onclick="setType('mc')">⛏ Minecraft</div><div id="tNode" onclick="setType('node')">⬢ Node.js</div></div>
 
       <div class="field"><label>Instance Name</label><input id="fName" placeholder="e.g. Production Survival"></div>
@@ -757,7 +835,7 @@ async function boot(){
   document.getElementById('whoName').textContent = me.username;
   document.getElementById('avLetter').textContent = me.username[0].toUpperCase();
   document.getElementById('roleLabel').textContent = (me.admin_enabled?'Admin • Access ON':'User');
-  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('navSettings').style.display='none'; document.getElementById('adminGrp').style.display='none'; document.getElementById('ownerField').classList.add('hidden'); }
+  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('navSettings').style.display='none'; document.getElementById('navSetups').style.display='none'; document.getElementById('adminGrp').style.display='none'; document.getElementById('ownerField').classList.add('hidden'); }
   else { document.getElementById('ownerField').classList.remove('hidden'); loadOwners(); }
 
   try{ sysInfo = await (await fetch('/api/system/info',{headers:authHeaders()})).json(); }catch(_){}
@@ -810,10 +888,11 @@ document.querySelectorAll('#side nav a').forEach(a=>a.addEventListener('click',(
 function showPage(p){
   document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
   document.getElementById('page-'+p).classList.remove('hidden');
-  const titles={dash:['Dashboard','Monitor your infrastructure and activity'],servers:['My Servers','Manage your deployments'],playit:['playit.gg Tunnels','Public IPs for your Minecraft servers'],users:['Users','Manage panel accounts and admin access'],settings:['Settings','Panel-wide configuration'],detail:['Server','']};
+  const titles={dash:['Dashboard','Monitor your infrastructure and activity'],servers:['My Servers','Manage your deployments'],playit:['playit.gg Tunnels','Public IPs for your Minecraft servers'],users:['Users','Manage panel accounts and admin access'],settings:['Settings','Panel-wide configuration'],setups:['Server Setups','Reusable creation templates'],detail:['Server','']};
   document.getElementById('pgTitle').textContent = titles[p][0];
   document.getElementById('pgSub').textContent = titles[p][1];
   if(p==='users') loadUsers();
+  if(p==='setups') loadSetupsPage();
 }
 
 function svIcon(s){ return s.type==='mc'?'⛏':'⬢'; }
@@ -878,6 +957,43 @@ async function loadUsers(){
 async function toggleUserAdmin(id,val){ await fetch(`/api/users/${id}`,{method:'PATCH',headers:authHeaders(),body:JSON.stringify({admin_enabled:val})}); loadUsers(); }
 async function removeUser(id){ await fetch(`/api/users/${id}`,{method:'DELETE',headers:authHeaders()}); loadUsers(); }
 function openAddUser(){ document.getElementById('userModal').classList.add('show'); }
+
+/* ---- server setups (admin templates) ---- */
+function onSetupTypeChange(){
+  document.getElementById('setupMcFields').classList.toggle('hidden', document.getElementById('setupType').value!=='mc');
+}
+async function loadSetupsPage(){
+  document.getElementById('setupSoftware').innerHTML = SOFTWARES.map(s=>`<option>${s.n}</option>`).join('');
+  document.getElementById('setupVersion').innerHTML = ['latest',...mcVersionsCache].map(v=>`<option>${v}</option>`).join('');
+  const r = await fetch('/api/setups',{headers:authHeaders()});
+  const d = await r.json();
+  document.getElementById('setupsTbody').innerHTML = d.map(s=>`
+    <tr><td>${s.name}</td><td>${s.type}</td><td>${s.type==='mc'?s.software+' '+s.version:'Node '+s.version}</td>
+    <td class="hint">${s.plugin_ids.join(', ')||'—'}</td>
+    <td><button class="btn sm danger" onclick="deleteSetup(${s.id})">Delete</button></td></tr>`).join('')
+    || `<tr><td colspan="5" class="hint" style="padding:16px">No setups yet — create one above.</td></tr>`;
+}
+async function createSetup(){
+  const type = document.getElementById('setupType').value;
+  const plugin_ids = document.getElementById('setupPlugins').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const body = {
+    name: document.getElementById('setupName').value || 'Untitled Setup',
+    type,
+    software: type==='mc'?document.getElementById('setupSoftware').value:null,
+    version: type==='mc'?document.getElementById('setupVersion').value:'20',
+    cpu: 1, ram: +document.getElementById('setupRam').value||2, disk: +document.getElementById('setupDisk').value||10,
+    plugin_ids
+  };
+  const r = await fetch('/api/setups',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
+  if(!r.ok){ const d=await r.json(); alert(d.error); return; }
+  document.getElementById('setupName').value=''; document.getElementById('setupPlugins').value='';
+  loadSetupsPage();
+}
+async function deleteSetup(id){
+  if(!confirm('Delete this setup?')) return;
+  await fetch(`/api/setups/${id}`,{method:'DELETE',headers:authHeaders()});
+  loadSetupsPage();
+}
 async function addUser(){
   const username=document.getElementById('uName').value, email=document.getElementById('uEmail').value;
   const password=document.getElementById('uPass').value||'changeme123';
@@ -888,7 +1004,27 @@ async function addUser(){
 }
 
 window._newType='mc';
-function openCreate(){ document.getElementById('createModal').classList.add('show'); if(me?.admin_enabled) loadOwners(); }
+let setupsCache = [];
+async function openCreate(){
+  document.getElementById('createModal').classList.add('show');
+  if(me?.admin_enabled) loadOwners();
+  try{
+    setupsCache = await (await fetch('/api/setups',{headers:authHeaders()})).json();
+    document.getElementById('fSetup').innerHTML = '<option value="">— Start from scratch —</option>' + setupsCache.map(s=>`<option value="${s.id}">${s.name} (${s.type==='mc'?s.software+' '+s.version:'Node '+s.version})</option>`).join('');
+  }catch(_){}
+}
+function applySetup(){
+  const id = +document.getElementById('fSetup').value;
+  if(!id) return;
+  const s = setupsCache.find(x=>x.id===id);
+  if(!s) return;
+  setType(s.type);
+  if(s.type==='mc'){ selectSoftware(s.software); document.getElementById('fMcVer').value = s.version; }
+  else document.getElementById('fNodeVer').value = s.version;
+  document.getElementById('fRam').value = s.ram;
+  document.getElementById('fDisk').value = s.disk;
+  onRamChange();
+}
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function setType(t){
   window._newType=t;
@@ -904,6 +1040,7 @@ async function createServer(){
   const t = window._newType;
   const btn = document.getElementById('deployBtn'); btn.disabled=true; btn.textContent='Deploying…';
   const cpuCores = (+document.getElementById('fCpuPct').value || 100) / 100;
+  const setupId = +document.getElementById('fSetup').value || null;
   const body = {
     name: document.getElementById('fName').value || ('server-'+Date.now()),
     type: t,
@@ -911,7 +1048,8 @@ async function createServer(){
     version: t==='mc'?document.getElementById('fMcVer').value:document.getElementById('fNodeVer').value,
     repo: t==='node'?document.getElementById('fRepo').value:null,
     start_cmd: t==='node'?document.getElementById('fStartCmd').value:null,
-    cpu: cpuCores, ram:+document.getElementById('fRam').value, disk:+document.getElementById('fDisk').value
+    cpu: cpuCores, ram:+document.getElementById('fRam').value, disk:+document.getElementById('fDisk').value,
+    setupId
   };
   const r = await fetch('/api/servers',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
   const d = await r.json();
@@ -940,6 +1078,9 @@ function openServerDetail(id){
   document.getElementById('mcOnlyFields').style.display = currentDetailServer.type==='mc' ? '' : 'none';
   document.getElementById('scPortText').textContent = currentDetailServer.port;
   document.getElementById('scPortBadge').textContent = currentDetailServer.port;
+  const aliasBadge = document.getElementById('scAliasBadge');
+  if(currentDetailServer.ip_alias){ aliasBadge.textContent = currentDetailServer.ip_alias+':'+currentDetailServer.port; aliasBadge.classList.remove('hidden'); }
+  else aliasBadge.classList.add('hidden');
   document.getElementById('cpuCapNum').textContent = Math.round((+currentDetailServer.cpu)*100);
   document.getElementById('memCapNum').textContent = Math.round(currentDetailServer.ram*1024);
   document.getElementById('diskCapNum').textContent = currentDetailServer.disk;
@@ -980,17 +1121,33 @@ async function scRestart(){
   currentDetailServer = servers.find(x=>x.id===s.id);
   updateScStatusUI();
 }
+function flashCopied(el){
+  const orig = el.textContent;
+  el.textContent = 'Copied!';
+  setTimeout(()=>{ el.textContent = orig; }, 1000);
+}
+function copyPort(){
+  navigator.clipboard.writeText(String(currentDetailServer.port));
+  flashCopied(document.getElementById('scPortBadge'));
+}
+function copyPortWithAlias(){
+  const text = currentDetailServer.ip_alias + ':' + currentDetailServer.port;
+  navigator.clipboard.writeText(text);
+  flashCopied(document.getElementById('scAliasBadge'));
+}
 
 function switchDetailTab(t){
   document.querySelectorAll('.scItem[data-t]').forEach(d=>d.classList.toggle('sel', d.dataset.t===t));
-  ['console','players','plugins','files','alloc','dsettings','scplayit'].forEach(x=>document.getElementById('dtab-'+x).classList.toggle('hidden', x!==t));
+  ['console','players','plugins','files','alloc','dsettings','scplayit','backup'].forEach(x=>document.getElementById('dtab-'+x).classList.toggle('hidden', x!==t));
   if(statsInterval){ clearInterval(statsInterval); statsInterval=null; }
   if(t==='console'){ startConsole(); pollStats(); }
   if(t==='players') loadPlayers();
+  if(t==='plugins'){ pluginSource='modrinth'; document.querySelectorAll('#pluginSourceTabs button').forEach(b=>b.classList.toggle('sel', b.dataset.src==='modrinth')); document.getElementById('pluginQuery').value=''; searchPluginsUI(0); }
   if(t==='files'){ currentFilesPath='.'; loadFiles(); }
   if(t==='alloc') loadAllocations();
   if(t==='dsettings') loadDetailSettings();
   if(t==='scplayit') loadScPlayit();
+  if(t==='backup') loadBackups();
 }
 
 function startConsole(){
@@ -1000,7 +1157,7 @@ function startConsole(){
   consoleWs = new WebSocket(`${proto}://${location.host}/ws/console?id=${currentDetailServer.id}&token=${token}`);
   consoleWs.onmessage = (ev)=>{
     const msg = JSON.parse(ev.data);
-    if(msg.type==='log'){ const c=document.getElementById('console'); c.textContent += msg.data; c.scrollTop = c.scrollHeight; }
+    if(msg.type==='log'){ appendConsoleLines(msg.data); }
   };
 }
 function sendCmd(){
@@ -1012,6 +1169,28 @@ function sendCmd(){
 function fillCmd(c){
   document.getElementById('cmdInput').value = c;
   sendCmd();
+}
+function stripAnsi(s){
+  // strips color codes AND raw cursor-control sequences (the "B[K" garbage from some MC launchers)
+  return s.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1B\][^\x07]*\x07/g, '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+}
+function classifyLine(line){
+  if (/\bERROR\b|\bSEVERE\b/i.test(line)) return 'clog-error';
+  if (/\bWARN(ING)?\b/i.test(line)) return 'clog-warn';
+  if (/\bINFO\b/i.test(line)) return 'clog-info';
+  return 'clog-default';
+}
+function appendConsoleLines(raw){
+  const c = document.getElementById('console');
+  const clean = stripAnsi(raw);
+  clean.split('\n').forEach((line, i, arr) => {
+    if(line==='' && i===arr.length-1) return; // trailing split artifact
+    const div = document.createElement('div');
+    div.className = classifyLine(line);
+    div.textContent = line;
+    c.appendChild(div);
+  });
+  c.scrollTop = c.scrollHeight;
 }
 document.getElementById('cmdInput')?.addEventListener('keydown',e=>{ if(e.key==='Enter') sendCmd(); });
 
@@ -1028,7 +1207,52 @@ async function pollStats(){
   statsInterval = setInterval(tick, 5000);
 }
 
-/* ---- players ---- */
+/* ---- backups ---- */
+async function loadBackups(){
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/backups`,{headers:authHeaders()});
+  const d = await r.json();
+  document.getElementById('backupsTbody').innerHTML = d.map(b=>`
+    <tr><td>${b.filename}</td><td>${(b.size/1024/1024).toFixed(1)} MB</td><td>${new Date(b.created_at+'Z').toLocaleString()}</td>
+    <td style="display:flex;gap:6px">
+      <button class="btn sm ghost" onclick="downloadBackup(${b.id})">Download</button>
+      <button class="btn sm ghost" onclick="restoreBackup(${b.id})">Restore</button>
+      <button class="btn sm danger" onclick="deleteBackup(${b.id})">Delete</button>
+    </td></tr>`).join('') || `<tr><td colspan="4" class="hint" style="padding:16px">No backups yet.</td></tr>`;
+}
+async function createBackup(){
+  const btn = document.getElementById('createBackupBtn'); btn.disabled=true; btn.textContent='Backing up…';
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/backups`,{method:'POST',headers:authHeaders()});
+  const d = await r.json();
+  btn.disabled=false; btn.textContent='+ Create Backup';
+  if(!r.ok){ alert(d.error); return; }
+  loadBackups();
+}
+function downloadBackup(id){
+  window.open(`/api/servers/${currentDetailServer.id}/backups/${id}/download?token=${token}`, '_blank');
+}
+async function restoreBackup(id){
+  if(!confirm('Restore this backup? This overwrites current files with matching names.')) return;
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/backups/${id}/restore`,{method:'POST',headers:authHeaders()});
+  const d = await r.json();
+  alert(r.ok ? d.note : d.error);
+}
+async function deleteBackup(id){
+  if(!confirm('Delete this backup permanently?')) return;
+  await fetch(`/api/servers/${currentDetailServer.id}/backups/${id}`,{method:'DELETE',headers:authHeaders()});
+  loadBackups();
+}
+function doImportBackup(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
+    const r = await fetch(`/api/servers/${currentDetailServer.id}/backups/import`,{method:'POST',headers:authHeaders(),body:JSON.stringify({base64})});
+    const d = await r.json();
+    alert(r.ok ? d.note : d.error);
+  };
+  reader.readAsDataURL(file);
+}
+
 async function loadPlayers(){
   const el = document.getElementById('playersOnline');
   el.textContent = 'Loading…';
@@ -1048,49 +1272,97 @@ async function doPlayerAction(){
 }
 
 /* ---- plugins ---- */
-async function searchPluginsUI(){
+let pluginSource = 'modrinth';
+const PLUGIN_PAGE_SIZE = 20;
+function setPluginSource(src){
+  pluginSource = src;
+  document.querySelectorAll('#pluginSourceTabs button').forEach(b=>b.classList.toggle('sel', b.dataset.src===src));
+  document.getElementById('pluginBbybNote').classList.toggle('hidden', src!=='bbyb');
+  if(src==='bbyb'){
+    document.getElementById('pluginResults').innerHTML='';
+    document.getElementById('pluginPager').innerHTML='';
+  } else {
+    searchPluginsUI(0);
+  }
+}
+function updateBbybLink(){
+  const q = document.getElementById('pluginQuery').value || 'minecraft plugin';
+  document.getElementById('pluginBbybLink').href = `https://builtbybit.com/resources/categories/spigot.15/?q=${encodeURIComponent(q)}`;
+}
+async function searchPluginsUI(offset){
+  offset = offset || 0;
+  updateBbybLink();
+  if(pluginSource==='bbyb') return;
   const q = document.getElementById('pluginQuery').value;
   const box = document.getElementById('pluginResults');
-  box.innerHTML = 'Searching…';
-  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/search?q=${encodeURIComponent(q)}`,{headers:authHeaders()});
+  box.innerHTML = '<div class="hint">Searching…</div>';
+  document.getElementById('pluginPager').innerHTML = '';
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/search?q=${encodeURIComponent(q)}&source=${pluginSource}&offset=${offset}`,{headers:authHeaders()});
   const d = await r.json();
   if(!r.ok){ box.innerHTML = `<div class="hint">${d.error}</div>`; return; }
-  box.innerHTML = d.map(p=>`
+  const results = d.results || [];
+  box.innerHTML = results.map(p=>`
     <div class="pluginRow">
-      <div class="pi"></div>
-      <div style="flex:1"><b style="font-size:13px">${p.title}</b><div class="hint">${(p.description||'').slice(0,90)}</div></div>
-      <button class="btn sm" onclick="installPlugin('${p.id}','${p.title.replace(/'/g,"")}')">Install</button>
-    </div>`).join('') || '<div class="hint">No results</div>';
+      <div class="pi" style="${p.icon?`background-image:url('${p.icon}')`:''}"></div>
+      <div style="flex:1;min-width:0"><b style="font-size:13px">${p.title}</b><div class="hint">${(p.description||'').slice(0,90)}</div></div>
+      <div class="hint" style="width:70px;text-align:right">${p.downloads?p.downloads.toLocaleString()+' dl':''}</div>
+      <button class="btn sm" onclick="installPlugin('${p.source}','${p.id}','${p.title.replace(/'/g,"")}')">Install</button>
+    </div>`).join('') || '<div class="hint">No results — try a different search term.</div>';
+
+  const pager = document.getElementById('pluginPager');
+  pager.innerHTML = '';
+  if(offset>0) pager.innerHTML += `<button class="btn sm ghost" onclick="searchPluginsUI(${Math.max(0,offset-PLUGIN_PAGE_SIZE)})">← Prev</button>`;
+  if(results.length===PLUGIN_PAGE_SIZE) pager.innerHTML += `<button class="btn sm ghost" onclick="searchPluginsUI(${offset+PLUGIN_PAGE_SIZE})">Next →</button>`;
 }
-async function installPlugin(projectId, title){
-  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({projectId})});
+async function installPlugin(source, projectId, title){
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({projectId, source})});
   const d = await r.json();
   alert(r.ok ? `Installed ${title} (${d.filename}). ${d.note}` : d.error);
 }
 
 /* ---- files ---- */
 async function loadFiles(){
-  document.getElementById('filesBreadcrumb').textContent = '/'+ (currentFilesPath==='.' ? '' : currentFilesPath);
   const r = await fetch(`/api/servers/${currentDetailServer.id}/files?path=${encodeURIComponent(currentFilesPath)}`,{headers:authHeaders()});
   const d = await r.json();
   if(!r.ok){ document.getElementById('filesList').innerHTML = `<div class="hint">${d.error}</div>`; return; }
   filesEntries = d.entries;
   renderFiles();
 }
+function fileIcon(name, isDir){
+  if(isDir) return '📁';
+  const ext = name.split('.').pop().toLowerCase();
+  if(['jar'].includes(ext)) return '☕';
+  if(['yml','yaml','json','toml','properties','conf','cfg'].includes(ext)) return '⚙';
+  if(['txt','md','log'].includes(ext)) return '📄';
+  if(['zip','tar','gz'].includes(ext)) return '🗜';
+  if(['png','jpg','jpeg','gif','webp'].includes(ext)) return '🖼';
+  if(['sh','js','cjs','ts','py'].includes(ext)) return '📜';
+  return '📄';
+}
+function renderBreadcrumb(){
+  const parts = currentFilesPath==='.' ? [] : currentFilesPath.split('/');
+  let html = `<span class="crumbBtn" onclick="filesGoto('.')">/</span>`;
+  let acc = '';
+  parts.forEach(p=>{ acc += (acc?'/':'')+p; html += ` <span class="crumbBtn" onclick="filesGoto('${acc}')">${p}</span> /`; });
+  document.getElementById('filesBreadcrumb').innerHTML = html;
+}
+function filesGoto(p){ currentFilesPath = p; loadFiles(); }
 function renderFiles(){
+  renderBreadcrumb();
   const q = (document.getElementById('filesSearch')?.value || '').toLowerCase();
   const list = document.getElementById('filesList');
   let rows = '';
-  if(currentFilesPath !== '.' && !q) rows += `<div class="fileRow" onclick="filesUp()">.. (up)</div>`;
+  if(currentFilesPath !== '.' && !q) rows += `<div class="fileRow" onclick="filesUp()"><div class="fic dir">↩</div><div class="fname">.. (up a level)</div></div>`;
   const filtered = filesEntries.filter(e=>e.name.toLowerCase().includes(q));
   rows += filtered.map(e=>{
     const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + e.name;
     return `<div class="fileRow" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}">
-      ${e.isDir?'📁':'📄'} ${e.name} ${!e.isDir?`<span class="hint" style="margin-left:auto">${(e.size/1024).toFixed(1)}KB</span>`:''}
-      ${!e.isDir?`<button class="btn sm danger" style="margin-left:8px" onclick="event.stopPropagation();deleteFile('${p}')">Del</button>`:''}
+      <div class="fic ${e.isDir?'dir':''}">${fileIcon(e.name, e.isDir)}</div>
+      <div class="fname">${e.name}</div>
+      ${!e.isDir?`<div class="fsize">${(e.size/1024).toFixed(1)} KB</div><button class="btn sm danger" onclick="event.stopPropagation();deleteFile('${p}')">Del</button>`:''}
     </div>`;
   }).join('');
-  list.innerHTML = rows || '<div class="hint">Empty folder</div>';
+  list.innerHTML = rows || '<div class="empty" style="border:none">Empty folder</div>';
 }
 function filesOpen(p){ currentFilesPath = p; loadFiles(); }
 function filesUp(){ const parts = currentFilesPath.split('/'); parts.pop(); currentFilesPath = parts.join('/') || '.'; loadFiles(); }
@@ -1147,9 +1419,10 @@ async function loadAllocations(){
 }
 async function addAllocation(){
   const container_port = +document.getElementById('allocPort').value;
+  const protocol = document.getElementById('allocProtocol').value;
   const note = document.getElementById('allocNote').value;
   if(!container_port) return;
-  const r = await fetch(`/api/servers/${currentDetailServer.id}/allocations`,{method:'POST',headers:authHeaders(),body:JSON.stringify({container_port, note})});
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/allocations`,{method:'POST',headers:authHeaders(),body:JSON.stringify({container_port, protocol, note})});
   const d = await r.json();
   if(!r.ok){ alert(d.error); return; }
   document.getElementById('allocPort').value=''; document.getElementById('allocNote').value='';

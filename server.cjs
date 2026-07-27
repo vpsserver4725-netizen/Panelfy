@@ -12,7 +12,7 @@ const dock = require('./docker.cjs');
 const playit = require('./playit.cjs');
 const { getMcVersions } = require('./mcversions.cjs');
 const { rconCommand } = require('./rcon.cjs');
-const { searchPlugins, getVersionForServer } = require('./plugins.cjs');
+const { searchPlugins, searchSpiget, getVersionForServer, getSpigetDownload } = require('./plugins.cjs');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'panelfy-dev-secret-change-me';
 const PORT = process.env.PORT || 8080;
@@ -150,6 +150,18 @@ app.post('/api/servers', auth, async (req, res) => {
 
     await dock.startContainer(containerId);
     db.prepare('UPDATE servers SET container_id = ?, status = ? WHERE id = ?').run(containerId, 'on', server.id);
+
+    if (b.setupId && b.type === 'mc') {
+      const setup = db.prepare('SELECT * FROM setups WHERE id = ?').get(b.setupId);
+      const pluginIds = setup ? JSON.parse(setup.plugin_ids || '[]') : [];
+      for (const pid of pluginIds) {
+        try {
+          const { downloadUrl, filename } = await getVersionForServer(pid, server.version, server.software);
+          await dock.execInContainer(containerId, `mkdir -p /data/plugins && wget -q -O "/data/plugins/${filename}" "${downloadUrl}"`);
+        } catch (e) { console.warn('Setup plugin install failed for', pid, e.message); }
+      }
+    }
+
     const created = db.prepare('SELECT * FROM servers WHERE id = ?').get(server.id);
     res.json({ ...created, note: req._resourceNote || null });
   } catch (e) {
@@ -372,18 +384,25 @@ app.post('/api/servers/:id/players/action', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: 'RCON error: ' + e.message }); }
 });
 
-// ---------- plugin installer (Modrinth) ----------
+// ---------- plugin installer (Modrinth + SpigotMC via Spiget) ----------
 app.get('/api/servers/:id/plugins/search', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
-  try { res.json(await searchPlugins(req.query.q, (s.software || 'paper').toLowerCase())); }
-  catch (e) { res.status(500).json({ error: e.message }); }
+  const source = req.query.source || 'modrinth';
+  const offset = +req.query.offset || 0;
+  try {
+    if (source === 'spigot') return res.json(await searchSpiget(req.query.q, offset));
+    if (source === 'bbyb') return res.json({ total: 0, results: [], note: 'BuildByBit has no public search API — use the button below to search their site directly and upload the jar via File Manager.' });
+    res.json(await searchPlugins(req.query.q, s.software, offset));
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/servers/:id/plugins/install', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
   if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
   try {
-    const { downloadUrl, filename } = await getVersionForServer(req.body.projectId, s.version, s.software);
+    const { downloadUrl, filename } = req.body.source === 'spigot'
+      ? await getSpigetDownload(req.body.projectId)
+      : await getVersionForServer(req.body.projectId, s.version, s.software);
     await dock.execInContainer(s.container_id, `mkdir -p /data/plugins && wget -q -O "/data/plugins/${filename}" "${downloadUrl}"`);
     res.json({ ok: true, filename, note: 'Installed — restart the server to load it.' });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -465,6 +484,88 @@ app.patch('/api/servers/:id', auth, async (req, res) => {
       .run(updated.software, updated.version, updated.cpu, updated.ram, containerId, 'on', s.id);
     res.json(db.prepare('SELECT * FROM servers WHERE id = ?').get(s.id));
   } catch (e) { res.status(500).json({ error: 'Failed to reconfigure: ' + (e.json?.message || e.message) }); }
+});
+
+
+// ---------- backups (real docker tar archive of the data dir, not a shell tar hack) ----------
+const fs = require('fs');
+const BACKUPS_DIR = path.join(__dirname, 'backups');
+if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
+
+app.get('/api/servers/:id/backups', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  res.json(db.prepare('SELECT * FROM backups WHERE server_id = ? ORDER BY created_at DESC').all(s.id));
+});
+
+app.post('/api/servers/:id/backups', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  try {
+    const filename = `backup-${s.id}-${Date.now()}.tar`;
+    const dest = path.join(BACKUPS_DIR, filename);
+    await dock.backupToFile(s.container_id, dataDir(s), dest);
+    const size = fs.statSync(dest).size;
+    const info = db.prepare('INSERT INTO backups (server_id,filename,size) VALUES (?,?,?)').run(s.id, filename, size);
+    res.json({ id: info.lastInsertRowid, server_id: s.id, filename, size });
+  } catch (e) { res.status(500).json({ error: 'Backup failed: ' + e.message }); }
+});
+
+app.get('/api/servers/:id/backups/:backupId/download', (req, res) => {
+  // uses a query-string token since <a download> links can't send an Authorization header
+  let user;
+  try { user = jwt.verify(req.query.token, JWT_SECRET); } catch { return res.status(401).send('Invalid token'); }
+  const s = db.prepare('SELECT * FROM servers WHERE id = ?').get(req.params.id);
+  if (!s || (s.owner_id !== user.id && !user.admin_enabled)) return res.status(403).send('Forbidden');
+  const b = db.prepare('SELECT * FROM backups WHERE id = ? AND server_id = ?').get(req.params.backupId, s.id);
+  if (!b) return res.status(404).send('Not found');
+  res.download(path.join(BACKUPS_DIR, b.filename), b.filename);
+});
+
+app.post('/api/servers/:id/backups/:backupId/restore', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const b = db.prepare('SELECT * FROM backups WHERE id = ? AND server_id = ?').get(req.params.backupId, s.id);
+  if (!b) return res.status(404).json({ error: 'Backup not found' });
+  try {
+    await dock.restoreFromFile(s.container_id, dataDir(s), path.join(BACKUPS_DIR, b.filename));
+    res.json({ ok: true, note: 'Restored — restart the server to pick up the restored files.' });
+  } catch (e) { res.status(500).json({ error: 'Restore failed: ' + e.message }); }
+});
+
+app.delete('/api/servers/:id/backups/:backupId', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const b = db.prepare('SELECT * FROM backups WHERE id = ? AND server_id = ?').get(req.params.backupId, s.id);
+  if (b) { try { fs.unlinkSync(path.join(BACKUPS_DIR, b.filename)); } catch (_) {} }
+  db.prepare('DELETE FROM backups WHERE id = ? AND server_id = ?').run(req.params.backupId, s.id);
+  res.json({ ok: true });
+});
+
+// Import: upload a .tar (optionally gzip-compressed, Docker accepts both) and extract
+// it straight into the server's data directory via the same native archive API.
+app.post('/api/servers/:id/backups/import', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  const base64 = (req.body.base64 || '').replace(/^data:[^,]+,/, '');
+  if (!base64) return res.status(400).json({ error: 'No file data received' });
+  try {
+    const tmp = path.join(BACKUPS_DIR, `import-${s.id}-${Date.now()}.tar`);
+    fs.writeFileSync(tmp, Buffer.from(base64, 'base64'));
+    await dock.restoreFromFile(s.container_id, dataDir(s), tmp);
+    fs.unlinkSync(tmp);
+    res.json({ ok: true, note: 'Imported — restart the server to pick up the imported files.' });
+  } catch (e) { res.status(500).json({ error: 'Import failed: ' + e.message }); }
+});
+
+// ---------- server setups (reusable creation templates) ----------
+app.get('/api/setups', auth, (req, res) => {
+  res.json(db.prepare('SELECT * FROM setups ORDER BY created_at DESC').all().map(r => ({ ...r, plugin_ids: JSON.parse(r.plugin_ids || '[]') })));
+});
+app.post('/api/setups', auth, requireAdmin, (req, res) => {
+  const b = req.body;
+  const info = db.prepare(`INSERT INTO setups (name,type,software,version,cpu,ram,disk,plugin_ids,created_by) VALUES (?,?,?,?,?,?,?,?,?)`)
+    .run(b.name, b.type, b.software || null, b.version || null, b.cpu || 1, b.ram || 2, b.disk || 10, JSON.stringify(b.plugin_ids || []), req.user.id);
+  res.json({ id: info.lastInsertRowid });
+});
+app.delete('/api/setups/:id', auth, requireAdmin, (req, res) => {
+  db.prepare('DELETE FROM setups WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
 });
 
 
