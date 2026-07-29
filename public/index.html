@@ -116,7 +116,7 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .empty{text-align:center;padding:50px 20px;color:var(--sub);font-size:13px;border:1px dashed var(--line);border-radius:14px}
 
 /* ============ MODALS ============ */
-.modal-bg{position:fixed;inset:0;background:rgba(5,5,10,.72);display:none;align-items:center;justify-content:center;z-index:50}
+.modal-bg{position:fixed;inset:0;background:rgba(5,5,10,.72);display:none;align-items:center;justify-content:center;z-index:100}
 .modal-bg.show{display:flex}
 .modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;width:600px;max-width:92vw;max-height:90vh;overflow-y:auto}
 .modal h3{padding:20px 24px;border-bottom:1px solid var(--line);font-size:17px;font-weight:800;display:flex;align-items:center;gap:8px}
@@ -166,12 +166,20 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
 .filesToolbar input{background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:9px 12px;border-radius:9px;font-size:12px}
 .crumbBtn{color:var(--sub);cursor:pointer;font-family:monospace;font-size:12px}
 .crumbBtn:hover{color:var(--teal)}
+.fkebab{padding:6px 10px!important}
+.fcontextmenu{position:absolute;right:12px;top:44px;background:var(--panel2);border:1px solid var(--line);border-radius:9px;box-shadow:0 10px 30px rgba(0,0,0,.5);z-index:20;min-width:140px;overflow:hidden}
+.fcontextmenu div{padding:10px 14px;font-size:12px;cursor:pointer}
+.fcontextmenu div:hover{background:var(--panel)}
+.fcontextmenu div.danger{color:var(--danger)}
 .pluginRow{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .pluginRow:last-child{border-bottom:none}
 .pluginRow .pi{width:36px;height:36px;border-radius:8px;background:var(--panel2);flex-shrink:0;background-size:cover;background-position:center}
 .sourcetabs{display:flex;gap:8px}
 .sourcetabs button{background:#0a0a0f;border:1px solid var(--line);color:var(--sub);padding:8px 14px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer}
 .sourcetabs button.sel{border-color:var(--accent);background:rgba(139,92,246,.15);color:var(--teal)}
+.permgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.permchip{display:flex;align-items:center;gap:7px;background:#0a0a0f;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer}
+.permchip input{accent-color:var(--accent)}
 
 /* ===== server context (dedicated page) ===== */
 #serverContext{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex}
@@ -275,7 +283,6 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
       <a data-p="playit">⇄ playit.gg Tunnels</a>
       <div class="grp" id="adminGrp">Administration</div>
       <a data-p="users" id="navUsers">◎ Users</a>
-      <a data-p="setups" id="navSetups">🧩 Server Setups</a>
       <a data-p="settings" id="navSettings">⚙ Settings</a>
     </nav>
     <div id="userbox">
@@ -318,34 +325,6 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
         <div class="card" style="padding:0">
           <table><thead><tr><th>User</th><th>Email</th><th>Role</th><th>Admin Access</th><th></th></tr></thead>
           <tbody id="usersTbody"></tbody></table>
-        </div>
-      </div>
-
-      <div id="page-setups" class="hidden">
-        <div class="section-title"><h2>Server Setups</h2></div>
-        <div class="card" style="margin-bottom:16px">
-          <b style="font-size:13px">Create Setup</b>
-          <div class="row2" style="margin-top:10px">
-            <input id="setupName" placeholder="Setup name (e.g. Skyblock Starter)" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
-            <select id="setupType" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px" onchange="onSetupTypeChange()"><option value="mc">Minecraft</option><option value="node">Node.js</option></select>
-          </div>
-          <div class="row2" style="margin-top:10px" id="setupMcFields">
-            <select id="setupSoftware" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px"></select>
-            <select id="setupVersion" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px"></select>
-          </div>
-          <div class="row2" style="margin-top:10px">
-            <input id="setupRam" type="number" placeholder="RAM (GB)" value="4" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
-            <input id="setupDisk" type="number" placeholder="Disk (GB)" value="10" style="background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px">
-          </div>
-          <div class="field" style="margin-top:10px">
-            <label>Auto-install Plugins <span style="opacity:.6;font-weight:400">(comma-separated Modrinth project slugs/IDs, optional)</span></label>
-            <input id="setupPlugins" placeholder="luckperms, essentialsx, worldedit">
-          </div>
-          <button class="btn sm" style="margin-top:12px" onclick="createSetup()">+ Create Setup</button>
-        </div>
-        <div class="card" style="padding:0">
-          <table><thead><tr><th>Name</th><th>Type</th><th>Software/Version</th><th>Plugins</th><th></th></tr></thead>
-          <tbody id="setupsTbody"></tbody></table>
         </div>
       </div>
 
@@ -428,7 +407,9 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
     <a class="scItem" data-t="files" onclick="switchDetailTab('files')">📁 File Manager</a>
     <a class="scItem" data-t="players" onclick="switchDetailTab('players')">👥 Players</a>
     <a class="scItem" data-t="plugins" onclick="switchDetailTab('plugins')">🧩 Plugins</a>
+    <a class="scItem" data-t="svsetups" onclick="switchDetailTab('svsetups')">🧰 Setups</a>
     <a class="scItem" data-t="alloc" onclick="switchDetailTab('alloc')">🌐 Allocation</a>
+    <a class="scItem" data-t="subusers" onclick="switchDetailTab('subusers')">👤 Sub-Users</a>
     <a class="scItem" data-t="dsettings" onclick="switchDetailTab('dsettings')">⚙ Settings</a>
     <a class="scItem" data-t="scplayit" onclick="switchDetailTab('scplayit')">⇄ Playit Tunnel</a>
     <a class="scItem" data-t="backup" onclick="switchDetailTab('backup')">🗄 Backup</a>
@@ -500,12 +481,14 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
             <button class="sel" data-src="modrinth" onclick="setPluginSource('modrinth')">⬥ Modrinth</button>
             <button data-src="spigot" onclick="setPluginSource('spigot')">🔶 SpigotMC</button>
             <button data-src="bbyb" onclick="setPluginSource('bbyb')">🅱 BuildByBit</button>
+            <button data-src="nullforms" onclick="setPluginSource('nullforms')">◆ Nullforms</button>
           </div>
           <div style="display:flex;gap:8px;margin-top:12px">
             <input id="pluginQuery" placeholder="Search for plugins..." style="flex:1;background:#0a0a0f;border:1px solid var(--line);color:var(--txt);padding:10px 12px;border-radius:9px" onkeydown="if(event.key==='Enter')searchPluginsUI(0)">
             <button class="btn sm" onclick="searchPluginsUI(0)">Search</button>
           </div>
           <div id="pluginBbybNote" class="hidden" style="margin-top:12px"><a class="btn sm ghost" target="_blank" id="pluginBbybLink">Search on builtbybit.com ↗</a></div>
+          <div id="pluginNullformsNote" class="hidden" style="margin-top:12px"><a class="btn sm ghost" target="_blank" id="pluginNullformsLink">Search on nullforms.com ↗</a></div>
           <div id="pluginResults" style="margin-top:14px"></div>
           <div id="pluginPager" style="display:flex;justify-content:center;gap:8px;margin-top:14px"></div>
         </div>
@@ -623,6 +606,70 @@ td{padding:13px 14px;border-bottom:1px solid var(--line);font-size:13px}
           <div class="hint">Upload a .tar, .tar.gz, or .zip archive of a data directory to extract straight into this server (overwrites matching files). Server should be stopped first.</div>
           <input type="file" id="importBackupInput" accept=".tar,.gz,.tgz,.zip" class="hidden" onchange="doImportBackup(this.files[0])">
           <button class="btn sm ghost" style="margin-top:10px" onclick="importBackupInput.click()">⬆ Upload &amp; Import</button>
+        </div>
+      </div>
+
+      <div id="dtab-svsetups" class="hidden">
+        <div class="sourcetabs" style="margin-bottom:16px">
+          <button class="sel" data-svt="uploader" onclick="setSvSetupTab('uploader')">⬆ Uploader</button>
+          <button data-svt="installer" onclick="setSvSetupTab('installer')">🌐 Installer</button>
+        </div>
+
+        <div id="svsetup-uploader">
+          <div class="card" style="margin-bottom:14px">
+            <b style="font-size:13px">📦 Full Server Setup</b>
+            <div class="hint">Upload a .zip / .tar / .tar.gz — extracted straight into this server's data directory (overwrites matching files).</div>
+            <input type="file" id="setupArchiveInput" accept=".zip,.tar,.gz,.tgz" class="hidden" onchange="doSetupArchiveUpload(this.files[0])">
+            <button class="btn sm ghost" style="margin-top:10px" onclick="setupArchiveInput.click()">⬆ Upload &amp; Extract</button>
+          </div>
+          <div class="card" style="margin-bottom:14px" id="worldUploaderCard">
+            <b style="font-size:13px">🗺 World Installer</b>
+            <div class="hint">Upload a world folder as .zip/.tar — installed as a named world you can point server.properties (level-name) at.</div>
+            <div class="row2" style="margin-top:10px">
+              <input id="worldNameInput" placeholder="World name (e.g. skyblock_world)" value="world">
+              <input type="file" id="worldFileInput" accept=".zip,.tar,.gz,.tgz" class="hidden" onchange="doWorldUpload(this.files[0])">
+            </div>
+            <button class="btn sm ghost" style="margin-top:10px" onclick="worldFileInput.click()">⬆ Upload World</button>
+          </div>
+          <div class="card" id="datapackUploaderCard">
+            <b style="font-size:13px">🧱 Datapack Installer</b>
+            <div class="hint">Upload a datapack .zip — installed into the chosen world's datapacks folder.</div>
+            <div class="row2" style="margin-top:10px">
+              <input id="dpWorldNameInput" placeholder="Target world (e.g. world)" value="world">
+              <input id="dpNameInput" placeholder="Datapack name (folder)" value="datapack">
+            </div>
+            <input type="file" id="dpFileInput" accept=".zip,.tar,.gz,.tgz" class="hidden" onchange="doDatapackUpload(this.files[0])">
+            <button class="btn sm ghost" style="margin-top:10px" onclick="dpFileInput.click()">⬆ Upload Datapack</button>
+          </div>
+        </div>
+
+        <div id="svsetup-installer" class="hidden">
+          <div class="card">
+            <b style="font-size:14px">🌐 Install from external site</b>
+            <div class="hint" style="margin-bottom:16px">No public download API exists for these sites, so this opens their search in a new tab — download the file there, then use the Uploader tab (or File Manager upload) to add it to this server.</div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <a class="btn sm ghost" target="_blank" href="https://builtbybit.com/resources/categories/minecraft.11/">🅱 Search BuiltByBit ↗</a>
+              <a class="btn sm ghost" target="_blank" href="https://nullforms.com/">◆ Search Nullforms ↗</a>
+              <a class="btn sm ghost" target="_blank" href="https://www.spigotmc.org/resources/">🔶 Search SpigotMC ↗</a>
+            </div>
+            <div class="hint" style="margin-top:16px">Looking for plugins specifically? The Plugins tab has real one-click install from Modrinth and SpigotMC already.</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="dtab-subusers" class="hidden">
+        <div class="card" style="margin-bottom:14px">
+          <b style="font-size:13px">Add Sub-User</b>
+          <div class="hint">Give another panel user access to this specific server with just the permissions you choose.</div>
+          <div class="row2" style="margin-top:10px">
+            <select id="subUserPicker"></select>
+          </div>
+          <div class="permgrid" id="subUserPerms"></div>
+          <button class="btn sm" style="margin-top:12px" onclick="addSubuser()">+ Grant Access</button>
+        </div>
+        <div class="card" style="padding:0">
+          <table><thead><tr><th>User</th><th>Permissions</th><th></th></tr></thead>
+          <tbody id="subusersTbody"></tbody></table>
         </div>
       </div>
 
@@ -854,7 +901,7 @@ async function boot(){
   document.getElementById('whoName').textContent = me.username;
   document.getElementById('avLetter').textContent = me.username[0].toUpperCase();
   document.getElementById('roleLabel').textContent = (me.admin_enabled?'Admin • Access ON':'User');
-  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('navSettings').style.display='none'; document.getElementById('navSetups').style.display='none'; document.getElementById('adminGrp').style.display='none'; document.getElementById('ownerField').classList.add('hidden'); }
+  if(!me.admin_enabled){ document.getElementById('navUsers').style.display='none'; document.getElementById('navSettings').style.display='none'; document.getElementById('adminGrp').style.display='none'; document.getElementById('ownerField').classList.add('hidden'); }
   else { document.getElementById('ownerField').classList.remove('hidden'); loadOwners(); }
 
   try{ sysInfo = await (await fetch('/api/system/info',{headers:authHeaders()})).json(); }catch(_){}
@@ -907,11 +954,10 @@ document.querySelectorAll('#side nav a').forEach(a=>a.addEventListener('click',(
 function showPage(p){
   document.querySelectorAll('[id^=page-]').forEach(el=>el.classList.add('hidden'));
   document.getElementById('page-'+p).classList.remove('hidden');
-  const titles={dash:['Dashboard','Monitor your infrastructure and activity'],servers:['My Servers','Manage your deployments'],playit:['playit.gg Tunnels','Public IPs for your Minecraft servers'],users:['Users','Manage panel accounts and admin access'],settings:['Settings','Panel-wide configuration'],setups:['Server Setups','Reusable creation templates'],detail:['Server','']};
+  const titles={dash:['Dashboard','Monitor your infrastructure and activity'],servers:['My Servers','Manage your deployments'],playit:['playit.gg Tunnels','Public IPs for your Minecraft servers'],users:['Users','Manage panel accounts and admin access'],settings:['Settings','Panel-wide configuration'],detail:['Server','']};
   document.getElementById('pgTitle').textContent = titles[p][0];
   document.getElementById('pgSub').textContent = titles[p][1];
   if(p==='users') loadUsers();
-  if(p==='setups') loadSetupsPage();
 }
 
 function svIcon(s){ return s.type==='mc'?'⛏':'⬢'; }
@@ -940,7 +986,11 @@ function render(){
     </div>`).join('') || '<div class="empty">No Minecraft servers to tunnel.</div>';
 }
 
-async function toggleServer(id,status){ await fetch(`/api/servers/${id}/${status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()}); await loadServers(); }
+async function toggleServer(id,status){
+  const r = await fetch(`/api/servers/${id}/${status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()});
+  if(!r.ok){ const d=await r.json(); alert(d.error); }
+  await loadServers();
+}
 async function deleteServer(id){ if(!confirm('Delete this server and its container permanently?')) return; await fetch(`/api/servers/${id}`,{method:'DELETE',headers:authHeaders()}); await loadServers(); }
 
 async function togglePlayit(id){
@@ -977,42 +1027,6 @@ async function toggleUserAdmin(id,val){ await fetch(`/api/users/${id}`,{method:'
 async function removeUser(id){ await fetch(`/api/users/${id}`,{method:'DELETE',headers:authHeaders()}); loadUsers(); }
 function openAddUser(){ document.getElementById('userModal').classList.add('show'); }
 
-/* ---- server setups (admin templates) ---- */
-function onSetupTypeChange(){
-  document.getElementById('setupMcFields').classList.toggle('hidden', document.getElementById('setupType').value!=='mc');
-}
-async function loadSetupsPage(){
-  document.getElementById('setupSoftware').innerHTML = SOFTWARES.map(s=>`<option>${s.n}</option>`).join('');
-  document.getElementById('setupVersion').innerHTML = ['latest',...mcVersionsCache].map(v=>`<option>${v}</option>`).join('');
-  const r = await fetch('/api/setups',{headers:authHeaders()});
-  const d = await r.json();
-  document.getElementById('setupsTbody').innerHTML = d.map(s=>`
-    <tr><td>${s.name}</td><td>${s.type}</td><td>${s.type==='mc'?s.software+' '+s.version:'Node '+s.version}</td>
-    <td class="hint">${s.plugin_ids.join(', ')||'—'}</td>
-    <td><button class="btn sm danger" onclick="deleteSetup(${s.id})">Delete</button></td></tr>`).join('')
-    || `<tr><td colspan="5" class="hint" style="padding:16px">No setups yet — create one above.</td></tr>`;
-}
-async function createSetup(){
-  const type = document.getElementById('setupType').value;
-  const plugin_ids = document.getElementById('setupPlugins').value.split(',').map(s=>s.trim()).filter(Boolean);
-  const body = {
-    name: document.getElementById('setupName').value || 'Untitled Setup',
-    type,
-    software: type==='mc'?document.getElementById('setupSoftware').value:null,
-    version: type==='mc'?document.getElementById('setupVersion').value:'20',
-    cpu: 1, ram: +document.getElementById('setupRam').value||2, disk: +document.getElementById('setupDisk').value||10,
-    plugin_ids
-  };
-  const r = await fetch('/api/setups',{method:'POST',headers:authHeaders(),body:JSON.stringify(body)});
-  if(!r.ok){ const d=await r.json(); alert(d.error); return; }
-  document.getElementById('setupName').value=''; document.getElementById('setupPlugins').value='';
-  loadSetupsPage();
-}
-async function deleteSetup(id){
-  if(!confirm('Delete this setup?')) return;
-  await fetch(`/api/setups/${id}`,{method:'DELETE',headers:authHeaders()});
-  loadSetupsPage();
-}
 async function addUser(){
   const username=document.getElementById('uName').value, email=document.getElementById('uEmail').value;
   const password=document.getElementById('uPass').value||'changeme123';
@@ -1129,14 +1143,16 @@ function updateScStatusUI(){
 }
 async function scToggleStart(){
   const s = currentDetailServer;
-  await fetch(`/api/servers/${s.id}/${s.status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()});
+  const r = await fetch(`/api/servers/${s.id}/${s.status==='on'?'stop':'start'}`,{method:'POST',headers:authHeaders()});
+  if(!r.ok){ const d=await r.json(); alert(d.error); }
   await loadServers();
   currentDetailServer = servers.find(x=>x.id===s.id);
   updateScStatusUI();
 }
 async function scRestart(){
   const s = currentDetailServer;
-  await fetch(`/api/servers/${s.id}/restart`,{method:'POST',headers:authHeaders()});
+  const r = await fetch(`/api/servers/${s.id}/restart`,{method:'POST',headers:authHeaders()});
+  if(!r.ok){ const d=await r.json(); alert(d.error); }
   await loadServers();
   currentDetailServer = servers.find(x=>x.id===s.id);
   updateScStatusUI();
@@ -1158,7 +1174,7 @@ function copyPortWithAlias(){
 
 function switchDetailTab(t){
   document.querySelectorAll('.scItem[data-t]').forEach(d=>d.classList.toggle('sel', d.dataset.t===t));
-  ['console','players','plugins','files','alloc','dsettings','scplayit','backup'].forEach(x=>document.getElementById('dtab-'+x).classList.toggle('hidden', x!==t));
+  ['console','players','plugins','files','alloc','dsettings','scplayit','backup','svsetups','subusers'].forEach(x=>document.getElementById('dtab-'+x).classList.toggle('hidden', x!==t));
   if(statsInterval){ clearInterval(statsInterval); statsInterval=null; }
   if(t==='console'){ startConsole(); pollStats(); }
   if(t==='players') loadPlayers();
@@ -1168,6 +1184,8 @@ function switchDetailTab(t){
   if(t==='dsettings') loadDetailSettings();
   if(t==='scplayit') loadScPlayit();
   if(t==='backup') loadBackups();
+  if(t==='svsetups') setSvSetupTab('uploader');
+  if(t==='subusers') loadSubusers();
 }
 
 function startConsole(){
@@ -1200,11 +1218,17 @@ function classifyLine(line){
   if (/\bINFO\b/i.test(line)) return 'clog-info';
   return 'clog-default';
 }
+function isNoiseLine(line){
+  // Every RCON call (player list/kick/etc.) opens a fresh connection, and the MC
+  // server logs a connect+disconnect for each one — pure noise for the console view.
+  return /Thread RCON Client .*(started|shutting down)/i.test(line);
+}
 function appendConsoleLines(raw){
   const c = document.getElementById('console');
   const clean = stripAnsi(raw);
   clean.split('\n').forEach((line, i, arr) => {
     if(line==='' && i===arr.length-1) return; // trailing split artifact
+    if(isNoiseLine(line)) return;
     const div = document.createElement('div');
     div.className = classifyLine(line);
     div.textContent = line;
@@ -1273,6 +1297,88 @@ function doImportBackup(file){
   reader.readAsDataURL(file);
 }
 
+/* ---- server setups: uploader + installer ---- */
+function setSvSetupTab(t){
+  document.querySelectorAll('#dtab-svsetups .sourcetabs button').forEach(b=>b.classList.toggle('sel', b.dataset.svt===t));
+  document.getElementById('svsetup-uploader').classList.toggle('hidden', t!=='uploader');
+  document.getElementById('svsetup-installer').classList.toggle('hidden', t!=='installer');
+  const isMc = currentDetailServer && currentDetailServer.type==='mc';
+  document.getElementById('worldUploaderCard').style.display = isMc ? '' : 'none';
+  document.getElementById('datapackUploaderCard').style.display = isMc ? '' : 'none';
+}
+function doSetupArchiveUpload(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
+    const r = await fetch(`/api/servers/${currentDetailServer.id}/backups/import`,{method:'POST',headers:authHeaders(),body:JSON.stringify({base64})});
+    const d = await r.json();
+    alert(r.ok ? d.note : d.error);
+  };
+  reader.readAsDataURL(file);
+}
+function doWorldUpload(file){
+  if(!file) return;
+  const worldName = document.getElementById('worldNameInput').value || 'world';
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
+    const r = await fetch(`/api/servers/${currentDetailServer.id}/world/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({base64, worldName})});
+    const d = await r.json();
+    alert(r.ok ? d.note : d.error);
+  };
+  reader.readAsDataURL(file);
+}
+function doDatapackUpload(file){
+  if(!file) return;
+  const worldName = document.getElementById('dpWorldNameInput').value || 'world';
+  const packName = document.getElementById('dpNameInput').value || 'datapack';
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const base64 = reader.result.split(',')[1];
+    const r = await fetch(`/api/servers/${currentDetailServer.id}/datapack/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({base64, worldName, packName})});
+    const d = await r.json();
+    alert(r.ok ? d.note : d.error);
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ---- sub-users ---- */
+const SUBUSER_PERMS = [
+  {k:'console',l:'Console'},{k:'files',l:'File Manager'},{k:'players',l:'Players'},
+  {k:'plugins',l:'Plugins'},{k:'backups',l:'Backups'},{k:'settings',l:'Settings'},
+  {k:'playit',l:'Playit Tunnel'},{k:'allocations',l:'Allocation'},{k:'subusers',l:'Sub-Users'}
+];
+async function loadSubusers(){
+  document.getElementById('subUserPerms').innerHTML = SUBUSER_PERMS.map(p=>`
+    <label class="permchip"><input type="checkbox" value="${p.k}"> ${p.l}</label>`).join('');
+  try{
+    const users = await (await fetch('/api/users/basic',{headers:authHeaders()})).json();
+    document.getElementById('subUserPicker').innerHTML = users.filter(u=>u.id!==currentDetailServer.owner_id).map(u=>`<option value="${u.id}">${u.username}</option>`).join('');
+  }catch(_){}
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/subusers`,{headers:authHeaders()});
+  if(!r.ok) return;
+  const d = await r.json();
+  document.getElementById('subusersTbody').innerHTML = d.map(su=>`
+    <tr><td>${su.username}</td><td class="hint">${su.permissions.join(', ')||'none'}</td>
+    <td><button class="btn sm danger" onclick="removeSubuser(${su.id})">Remove</button></td></tr>`).join('')
+    || `<tr><td colspan="3" class="hint" style="padding:16px">No sub-users yet.</td></tr>`;
+}
+async function addSubuser(){
+  const user_id = +document.getElementById('subUserPicker').value;
+  if(!user_id){ alert('Pick a user first'); return; }
+  const permissions = [...document.querySelectorAll('#subUserPerms input:checked')].map(c=>c.value);
+  const r = await fetch(`/api/servers/${currentDetailServer.id}/subusers`,{method:'POST',headers:authHeaders(),body:JSON.stringify({user_id, permissions})});
+  const d = await r.json();
+  if(!r.ok){ alert(d.error); return; }
+  loadSubusers();
+}
+async function removeSubuser(id){
+  if(!confirm('Remove this sub-user\'s access?')) return;
+  await fetch(`/api/servers/${currentDetailServer.id}/subusers/${id}`,{method:'DELETE',headers:authHeaders()});
+  loadSubusers();
+}
+
 async function loadPlayers(){
   const el = document.getElementById('playersOnline');
   el.textContent = 'Loading…';
@@ -1298,21 +1404,24 @@ function setPluginSource(src){
   pluginSource = src;
   document.querySelectorAll('#pluginSourceTabs button').forEach(b=>b.classList.toggle('sel', b.dataset.src===src));
   document.getElementById('pluginBbybNote').classList.toggle('hidden', src!=='bbyb');
-  if(src==='bbyb'){
+  document.getElementById('pluginNullformsNote').classList.toggle('hidden', src!=='nullforms');
+  if(src==='bbyb' || src==='nullforms'){
+    updateExternalLinks();
     document.getElementById('pluginResults').innerHTML='';
     document.getElementById('pluginPager').innerHTML='';
   } else {
     searchPluginsUI(0);
   }
 }
-function updateBbybLink(){
+function updateExternalLinks(){
   const q = document.getElementById('pluginQuery').value || 'minecraft plugin';
   document.getElementById('pluginBbybLink').href = `https://builtbybit.com/resources/categories/spigot.15/?q=${encodeURIComponent(q)}`;
+  document.getElementById('pluginNullformsLink').href = `https://nullforms.com/search?q=${encodeURIComponent(q)}`;
 }
 async function searchPluginsUI(offset){
   offset = offset || 0;
-  updateBbybLink();
-  if(pluginSource==='bbyb') return;
+  updateExternalLinks();
+  if(pluginSource==='bbyb' || pluginSource==='nullforms') return;
   const q = document.getElementById('pluginQuery').value;
   const box = document.getElementById('pluginResults');
   box.innerHTML = '<div class="hint">Searching…</div>';
@@ -1321,13 +1430,13 @@ async function searchPluginsUI(offset){
   const d = await r.json();
   if(!r.ok){ box.innerHTML = `<div class="hint">${d.error}</div>`; return; }
   const results = d.results || [];
-  box.innerHTML = results.map(p=>`
-    <div class="pluginRow">
+  box.innerHTML = results.map((p,i)=>`
+    <div class="pluginRow" id="prow-${i}">
       <div class="pi" style="${p.icon?`background-image:url('${p.icon}')`:''}"></div>
-      <div style="flex:1;min-width:0"><b style="font-size:13px">${p.title}</b><div class="hint">${(p.description||'').slice(0,90)}</div></div>
+      <div style="flex:1;min-width:0"><b style="font-size:13px">${p.title}</b><div class="hint" id="prow-status-${i}">${(p.description||'').slice(0,90)}</div></div>
       <div class="hint" style="width:70px;text-align:right">${p.downloads?p.downloads.toLocaleString()+' dl':''}</div>
       <button class="btn sm ghost" onclick="openVersionPicker('${p.source}','${p.id}','${p.title.replace(/'/g,"")}')">Version</button>
-      <button class="btn sm" onclick="installPlugin('${p.source}','${p.id}','${p.title.replace(/'/g,"")}')">Install</button>
+      <button class="btn sm" id="prow-btn-${i}" onclick="installPlugin('${p.source}','${p.id}','${p.title.replace(/'/g,"")}',null,${i})">Install</button>
     </div>`).join('') || '<div class="hint">No results — try a different search term.</div>';
 
   const pager = document.getElementById('pluginPager');
@@ -1335,10 +1444,19 @@ async function searchPluginsUI(offset){
   if(offset>0) pager.innerHTML += `<button class="btn sm ghost" onclick="searchPluginsUI(${Math.max(0,offset-PLUGIN_PAGE_SIZE)})">← Prev</button>`;
   if(results.length===PLUGIN_PAGE_SIZE) pager.innerHTML += `<button class="btn sm ghost" onclick="searchPluginsUI(${offset+PLUGIN_PAGE_SIZE})">Next →</button>`;
 }
-async function installPlugin(source, projectId, title, versionId){
+async function installPlugin(source, projectId, title, versionId, rowIndex){
+  const btn = rowIndex!==undefined ? document.getElementById('prow-btn-'+rowIndex) : null;
+  const status = rowIndex!==undefined ? document.getElementById('prow-status-'+rowIndex) : null;
+  if(btn){ btn.disabled=true; btn.textContent='Installing…'; }
   const r = await fetch(`/api/servers/${currentDetailServer.id}/plugins/install`,{method:'POST',headers:authHeaders(),body:JSON.stringify({projectId, source, versionId})});
   const d = await r.json();
-  alert(r.ok ? `Installed ${title} (${d.filename}). ${d.note}` : d.error);
+  if(status){
+    status.textContent = r.ok ? `✓ ${title} successfully installed (${d.filename})` : `✗ ${d.error}`;
+    status.style.color = r.ok ? 'var(--ok)' : 'var(--danger)';
+  } else {
+    alert(r.ok ? `Installed ${title} (${d.filename}). ${d.note}` : d.error);
+  }
+  if(btn){ btn.disabled=false; btn.textContent = r.ok ? '✓ Installed' : 'Install'; }
 }
 async function openVersionPicker(source, projectId, title){
   document.getElementById('versionPickerTitle').textContent = 'Choose a version — ' + title;
@@ -1399,22 +1517,39 @@ function renderFiles(){
   let rows = '';
   if(currentFilesPath !== '.' && !q) rows += `<div class="fileRow" onclick="filesUp()"><div class="fic dir">↩</div><div class="fname">.. (up a level)</div></div>`;
   const filtered = filesEntries.filter(e=>e.name.toLowerCase().includes(q));
-  rows += filtered.map(e=>{
+  rows += filtered.map((e,i)=>{
     const p = (currentFilesPath==='.'?'':currentFilesPath+'/') + e.name;
     const checked = selectedFiles.has(p) ? 'checked' : '';
-    return `<div class="fileRow">
+    const menuId = 'fmenu'+i;
+    return `<div class="fileRow" style="position:relative">
       <input type="checkbox" ${checked} onclick="event.stopPropagation();toggleFileSelect('${p}',this.checked)" style="accent-color:var(--accent)">
       <div class="fic ${e.isDir?'dir':''}" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}" style="cursor:pointer">${fileIcon(e.name, e.isDir)}</div>
       <div class="fname" onclick="${e.isDir?`filesOpen('${p}')`:`openFile('${p}')`}" style="cursor:pointer">${e.name}</div>
       ${!e.isDir?`<div class="fsize">${(e.size/1024).toFixed(1)} KB</div>`:''}
-      <button class="btn sm ghost" onclick="event.stopPropagation();renameFile('${p}','${e.name}')">Rename</button>
-      <button class="btn sm danger" onclick="event.stopPropagation();deleteFile('${p}')">Del</button>
+      <button class="btn sm ghost fkebab" onclick="event.stopPropagation();toggleFileMenu('${menuId}')">⋮</button>
+      <div class="fcontextmenu hidden" id="${menuId}">
+        ${!e.isDir?`<div onclick="event.stopPropagation();downloadFile('${p}');closeAllFileMenus()">⬇ Download</div>`:''}
+        <div onclick="event.stopPropagation();renameFile('${p}','${e.name}');closeAllFileMenus()">✎ Rename</div>
+        <div class="danger" onclick="event.stopPropagation();deleteFile('${p}');closeAllFileMenus()">🗑 Delete</div>
+      </div>
     </div>`;
   }).join('');
   list.innerHTML = rows || '<div class="empty" style="border:none">Empty folder</div>';
   updateSelBar();
 }
 function filesOpen(p){ currentFilesPath = p; selectedFiles.clear(); loadFiles(); }
+function toggleFileMenu(id){
+  const wasHidden = document.getElementById(id).classList.contains('hidden');
+  closeAllFileMenus();
+  if(wasHidden) document.getElementById(id).classList.remove('hidden');
+}
+function closeAllFileMenus(){
+  document.querySelectorAll('.fcontextmenu').forEach(m=>m.classList.add('hidden'));
+}
+document.addEventListener('click', (e)=>{ if(!e.target.closest('.fkebab')) closeAllFileMenus(); });
+function downloadFile(p){
+  window.open(`/api/servers/${currentDetailServer.id}/files/download?path=${encodeURIComponent(p)}&token=${token}`, '_blank');
+}
 function filesUp(){ const parts = currentFilesPath.split('/'); parts.pop(); currentFilesPath = parts.join('/') || '.'; selectedFiles.clear(); loadFiles(); }
 async function filesMkdir(){
   const name = prompt('New folder name:');

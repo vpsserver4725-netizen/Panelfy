@@ -99,6 +99,14 @@ CREATE TABLE IF NOT EXISTS setups (
   created_by INTEGER,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS server_subusers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  server_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  permissions TEXT DEFAULT '[]',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(server_id, user_id)
+);
 `);
 
 // seed default owner/admin if no users exist

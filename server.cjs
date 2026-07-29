@@ -19,7 +19,7 @@ const PORT = process.env.PORT || 8080;
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '25mb' }));
+app.use(express.json({ limit: '60mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- auth helpers ----------
@@ -117,7 +117,11 @@ app.patch('/api/settings', auth, requireAdmin, (req, res) => {
 app.get('/api/servers', auth, (req, res) => {
   const rows = req.user.admin_enabled
     ? db.prepare('SELECT * FROM servers').all()
-    : db.prepare('SELECT * FROM servers WHERE owner_id = ?').all(req.user.id);
+    : db.prepare(`
+        SELECT s.* FROM servers s WHERE s.owner_id = ?
+        UNION
+        SELECT s.* FROM servers s JOIN server_subusers su ON su.server_id = s.id WHERE su.user_id = ?
+      `).all(req.user.id, req.user.id);
   res.json(rows);
 });
 
@@ -157,7 +161,10 @@ app.post('/api/servers', auth, async (req, res) => {
       for (const pid of pluginIds) {
         try {
           const { downloadUrl, filename } = await getVersionForServer(pid, server.version, server.software);
-          await dock.execInContainer(containerId, `mkdir -p /data/plugins && wget -q -O "/data/plugins/${filename}" "${downloadUrl}"`);
+          const fileRes = await fetch(downloadUrl, { signal: AbortSignal.timeout(30000) });
+          if (!fileRes.ok) throw new Error(`HTTP ${fileRes.status}`);
+          const buf = Buffer.from(await fileRes.arrayBuffer());
+          await dock.putFileBuffer(containerId, '/data/plugins', filename, buf);
         } catch (e) { console.warn('Setup plugin install failed for', pid, e.message); }
       }
     }
@@ -173,37 +180,59 @@ app.post('/api/servers', auth, async (req, res) => {
   }
 });
 
+const ALL_PERMS = ['console','files','players','plugins','backups','settings','playit','allocations','subusers'];
+
 function ownedOrAdmin(req, res, id) {
   const s = db.prepare('SELECT * FROM servers WHERE id = ?').get(id);
   if (!s) { res.status(404).json({ error: 'Not found' }); return null; }
-  if (s.owner_id !== req.user.id && !req.user.admin_enabled) { res.status(403).json({ error: 'Forbidden' }); return null; }
-  return s;
+  if (s.owner_id === req.user.id || req.user.admin_enabled) { s._perms = ALL_PERMS; return s; }
+  const sub = db.prepare('SELECT * FROM server_subusers WHERE server_id = ? AND user_id = ?').get(id, req.user.id);
+  if (sub) { s._perms = JSON.parse(sub.permissions || '[]'); return s; }
+  res.status(403).json({ error: 'Forbidden' });
+  return null;
+}
+// Call after ownedOrAdmin — checks the specific permission a subuser needs for an action.
+// Owners/admins always pass (their _perms is the full list).
+function requirePerm(s, req, res, perm) {
+  if (s._perms && s._perms.includes(perm)) return true;
+  res.status(403).json({ error: `You don't have "${perm}" permission on this server` });
+  return false;
 }
 
 app.post('/api/servers/:id/start', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
-  await dock.startContainer(s.container_id);
-  db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('on', s.id);
-  res.json({ ok: true });
+  if (!requirePerm(s, req, res, 'console')) return;
+  try {
+    await dock.startContainer(s.container_id);
+    db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('on', s.id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Failed to start: ' + e.message }); }
 });
 
 app.post('/api/servers/:id/stop', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
-  await dock.stopContainer(s.container_id);
-  db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('off', s.id);
-  res.json({ ok: true });
+  if (!requirePerm(s, req, res, 'console')) return;
+  try {
+    await dock.stopContainer(s.container_id);
+    db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('off', s.id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Failed to stop: ' + e.message }); }
 });
 
 app.post('/api/servers/:id/restart', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
-  await dock.stopContainer(s.container_id);
-  await dock.startContainer(s.container_id);
-  db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('on', s.id);
-  res.json({ ok: true });
+  if (!requirePerm(s, req, res, 'console')) return;
+  try {
+    await dock.stopContainer(s.container_id);
+    await dock.startContainer(s.container_id);
+    db.prepare('UPDATE servers SET status = ? WHERE id = ?').run('on', s.id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Failed to restart: ' + e.message }); }
 });
 
 app.delete('/api/servers/:id', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (s.owner_id !== req.user.id && !req.user.admin_enabled) return res.status(403).json({ error: 'Only the owner or an admin can delete a server' });
   if (s.playit_active) playit.stop(s.id);
   await dock.removeContainer(s.container_id);
   db.prepare('DELETE FROM servers WHERE id = ?').run(s.id);
@@ -212,8 +241,11 @@ app.delete('/api/servers/:id', auth, async (req, res) => {
 
 app.post('/api/servers/:id/command', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
-  await dock.sendCommand(s.container_id, req.body.cmd || '');
-  res.json({ ok: true });
+  if (!requirePerm(s, req, res, 'console')) return;
+  try {
+    await dock.sendCommand(s.container_id, req.body.cmd || '');
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: 'Command failed: ' + e.message }); }
 });
 
 // ---------- playit.gg ----------
@@ -222,6 +254,7 @@ app.post('/api/servers/:id/command', auth, async (req, res) => {
 // reconnects silently using the saved secret and returns the tunnel ip directly.
 app.post('/api/servers/:id/playit/toggle', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'playit')) return;
   if (db.getSetting('playit_enabled', '1') !== '1') {
     return res.status(403).json({ error: 'playit.gg tunnels are disabled panel-wide (Settings → admin only)' });
   }
@@ -241,6 +274,7 @@ app.post('/api/servers/:id/playit/toggle', auth, async (req, res) => {
 // Frontend polls this while status is 'pending_claim' to pick up the ip once approved
 app.get('/api/servers/:id/playit/status', auth, (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'playit')) return;
   const entry = playit.status(s.id);
   if (!entry) return res.json({ active: false });
   if (entry.status === 'connected' && entry.ip && s.playit_ip !== entry.ip) {
@@ -252,12 +286,49 @@ app.get('/api/servers/:id/playit/status', auth, (req, res) => {
 // Fully unlink the agent (deletes the saved secret - next toggle-on needs a fresh claim)
 app.post('/api/servers/:id/playit/forget', auth, (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'playit')) return;
   playit.forgetAgent(s.id);
   db.prepare('UPDATE servers SET playit_active = 0, playit_ip = NULL WHERE id = ?').run(s.id);
   res.json({ ok: true });
 });
 
 // ---------- users (admin only) ----------
+// Lightweight, non-admin-gated user list — used for the subuser picker so any
+// server owner (not just admins) can grant access without needing admin rights.
+app.get('/api/users/basic', auth, (req, res) => {
+  res.json(db.prepare('SELECT id, username FROM users').all());
+});
+
+app.get('/api/servers/:id/subusers', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'subusers')) return;
+  const rows = db.prepare(`
+    SELECT su.id, su.user_id, su.permissions, u.username FROM server_subusers su
+    JOIN users u ON u.id = su.user_id WHERE su.server_id = ?
+  `).all(s.id);
+  res.json(rows.map(r => ({ ...r, permissions: JSON.parse(r.permissions || '[]') })));
+});
+
+app.post('/api/servers/:id/subusers', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'subusers')) return;
+  const { user_id, permissions } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+  try {
+    db.prepare(`INSERT INTO server_subusers (server_id,user_id,permissions) VALUES (?,?,?)
+                ON CONFLICT(server_id,user_id) DO UPDATE SET permissions = excluded.permissions`)
+      .run(s.id, user_id, JSON.stringify(permissions || []));
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+app.delete('/api/servers/:id/subusers/:subId', auth, (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'subusers')) return;
+  db.prepare('DELETE FROM server_subusers WHERE id = ? AND server_id = ?').run(req.params.subId, s.id);
+  res.json({ ok: true });
+});
+
 app.get('/api/users', auth, requireAdmin, (req, res) => {
   res.json(db.prepare('SELECT id,username,email,role,admin_enabled FROM users').all());
 });
@@ -293,6 +364,7 @@ const dataDir = (s) => s.type === 'mc' ? '/data' : '/app';
 
 app.get('/api/servers/:id/files', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const p = safePath(req.query.path);
   try {
     const out = await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && ls -lAp --time-style=+%s "${p}" 2>&1`);
@@ -306,8 +378,29 @@ app.get('/api/servers/:id/files', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Uses a query-string token like the backup download route, since <a download>
+// links can't send an Authorization header.
+app.get('/api/servers/:id/files/download', async (req, res) => {
+  let user;
+  try { user = jwt.verify(req.query.token, JWT_SECRET); } catch { return res.status(401).send('Invalid token'); }
+  const s = db.prepare('SELECT * FROM servers WHERE id = ?').get(req.params.id);
+  if (!s) return res.status(404).send('Not found');
+  const isOwnerOrAdmin = s.owner_id === user.id || user.admin_enabled;
+  const sub = isOwnerOrAdmin ? null : db.prepare('SELECT * FROM server_subusers WHERE server_id = ? AND user_id = ?').get(s.id, user.id);
+  const perms = isOwnerOrAdmin ? ALL_PERMS : JSON.parse(sub?.permissions || '[]');
+  if (!isOwnerOrAdmin && !sub) return res.status(403).send('Forbidden');
+  if (!perms.includes('files')) return res.status(403).send('No files permission');
+  const p = safePath(req.query.path);
+  try {
+    const buf = await dock.execInContainerBinary(s.container_id, `cd ${dataDir(s)} && cat "${p}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${p.split('/').pop()}"`);
+    res.send(buf);
+  } catch (e) { res.status(500).send('Download failed: ' + e.message); }
+});
+
 app.get('/api/servers/:id/files/read', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const p = safePath(req.query.path);
   try {
     const size = await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && wc -c < "${p}" 2>&1`);
@@ -319,6 +412,7 @@ app.get('/api/servers/:id/files/read', auth, async (req, res) => {
 
 app.post('/api/servers/:id/files/write', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const p = safePath(req.body.path);
   const b64 = Buffer.from(req.body.content || '', 'utf8').toString('base64');
   try {
@@ -327,21 +421,26 @@ app.post('/api/servers/:id/files/write', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// For binary uploads (jars, zips, images) the client sends already-base64 data —
-// no re-encoding here, unlike /files/write which is for plain-text editor saves.
+// For binary uploads (jars, zips, images) the client sends already-base64 data.
+// Uses putFileBuffer (tar + Docker's native putArchive) instead of shelling
+// base64 through the command line — that approach silently broke on anything
+// beyond a few hundred KB (OS/Docker exec argument-length limits).
 app.post('/api/servers/:id/files/upload', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const p = safePath(req.body.path);
   const base64 = (req.body.base64 || '').replace(/^data:[^,]+,/, '');
   if (!base64) return res.status(400).json({ error: 'No file data received' });
   try {
-    await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && echo '${base64}' | base64 -d > "${p}"`);
+    const buf = Buffer.from(base64, 'base64');
+    await dock.putFileBuffer(s.container_id, dataDir(s), p, buf);
     res.json({ ok: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Upload failed: ' + e.message }); }
 });
 
 app.post('/api/servers/:id/files/mkdir', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const p = safePath(req.body.path);
   try { await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && mkdir -p "${p}"`); res.json({ ok: true }); }
   catch (e) { res.status(500).json({ error: e.message }); }
@@ -349,6 +448,7 @@ app.post('/api/servers/:id/files/mkdir', auth, async (req, res) => {
 
 app.delete('/api/servers/:id/files', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const p = safePath(req.query.path);
   if (!p || p === '.') return res.status(400).json({ error: 'Refusing to delete root' });
   try { await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && rm -rf "${p}"`); res.json({ ok: true }); }
@@ -358,6 +458,7 @@ app.delete('/api/servers/:id/files', auth, async (req, res) => {
 // Bulk delete (Pterodactyl-style checkbox multi-select)
 app.post('/api/servers/:id/files/bulk-delete', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const paths = (req.body.paths || []).map(safePath).filter(p => p && p !== '.');
   if (!paths.length) return res.status(400).json({ error: 'No paths given' });
   try {
@@ -369,6 +470,7 @@ app.post('/api/servers/:id/files/bulk-delete', auth, async (req, res) => {
 
 app.post('/api/servers/:id/files/rename', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const from = safePath(req.body.from);
   const to = safePath(req.body.to);
   if (!from || !to) return res.status(400).json({ error: 'from and to are required' });
@@ -379,6 +481,7 @@ app.post('/api/servers/:id/files/rename', auth, async (req, res) => {
 // Zip selected files/folders into an archive in-place (Pterodactyl "Create Archive")
 app.post('/api/servers/:id/files/archive', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
   const paths = (req.body.paths || []).map(safePath).filter(p => p && p !== '.');
   if (!paths.length) return res.status(400).json({ error: 'No paths given' });
   const archiveName = `archive-${Date.now()}.zip`;
@@ -392,6 +495,7 @@ app.post('/api/servers/:id/files/archive', auth, async (req, res) => {
 // ---------- player manager (RCON, Minecraft servers only) ----------
 app.get('/api/servers/:id/players', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'players')) return;
   if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
   if (s.status !== 'on') return res.json({ online: [], raw: 'Server is offline' });
   try {
@@ -404,6 +508,7 @@ app.get('/api/servers/:id/players', auth, async (req, res) => {
 
 app.post('/api/servers/:id/players/action', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'players')) return;
   if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
   const { action, player } = req.body;
   const cmds = {
@@ -421,17 +526,20 @@ app.post('/api/servers/:id/players/action', auth, async (req, res) => {
 // ---------- plugin installer (Modrinth + SpigotMC via Spiget) ----------
 app.get('/api/servers/:id/plugins/search', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'plugins')) return;
   const source = req.query.source || 'modrinth';
   const offset = +req.query.offset || 0;
   try {
     if (source === 'spigot') return res.json(await searchSpiget(req.query.q, offset));
     if (source === 'bbyb') return res.json({ total: 0, results: [], note: 'BuildByBit has no public search API — use the button below to search their site directly and upload the jar via File Manager.' });
+    if (source === 'nullforms') return res.json({ total: 0, results: [], note: 'Nullforms has no public search API — use the button below to search their site directly and upload the jar via File Manager.' });
     res.json(await searchPlugins(req.query.q, s.software, offset));
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/api/servers/:id/plugins/:source/:projectId/versions', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'plugins')) return;
   try {
     const versions = req.params.source === 'spigot'
       ? await listSpigetVersions(req.params.projectId)
@@ -442,18 +550,29 @@ app.get('/api/servers/:id/plugins/:source/:projectId/versions', auth, async (req
 
 app.post('/api/servers/:id/plugins/install', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'plugins')) return;
   if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
+  if (s.status !== 'on') return res.status(400).json({ error: 'Start the server first — plugins install into the running container.' });
   try {
     const { downloadUrl, filename } = req.body.source === 'spigot'
       ? await getSpigetDownload(req.body.projectId, req.body.versionId)
       : await getVersionForServer(req.body.projectId, s.version, s.software, req.body.versionId);
-    await dock.execInContainer(s.container_id, `mkdir -p /data/plugins && wget -q -O "/data/plugins/${filename}" "${downloadUrl}"`);
+
+    // Fetch the jar on the panel host (reliable, full internet access) rather than
+    // relying on wget existing inside the container image, then write it via the
+    // same tar/putArchive path as regular uploads — no shell/exec size limits.
+    const fileRes = await fetch(downloadUrl, { signal: AbortSignal.timeout(30000) });
+    if (!fileRes.ok) throw new Error(`Download failed (HTTP ${fileRes.status})`);
+    const buf = Buffer.from(await fileRes.arrayBuffer());
+    await dock.putFileBuffer(s.container_id, '/data/plugins', filename, buf);
+
     res.json({ ok: true, filename, note: 'Installed — restart the server to load it.' });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { res.status(500).json({ error: 'Install failed: ' + e.message }); }
 });
 
 app.get('/api/servers/:id/stats', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'console')) return;
   if (s.status !== 'on') return res.json({ cpuPct: 0, memMB: 0, running: false });
   try {
     const stats = await dock.docker.getContainer(s.container_id).stats({ stream: false });
@@ -469,10 +588,12 @@ app.get('/api/servers/:id/stats', auth, async (req, res) => {
 // ---------- network allocations (extra ports beyond the primary game port) ----------
 app.get('/api/servers/:id/allocations', auth, (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'allocations')) return;
   res.json(db.prepare('SELECT * FROM server_allocations WHERE server_id = ?').all(s.id));
 });
 app.post('/api/servers/:id/allocations', auth, (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'allocations')) return;
   const containerPort = +req.body.container_port;
   if (!containerPort) return res.status(400).json({ error: 'container_port is required' });
   const maxHostPort = db.prepare('SELECT MAX(host_port) m FROM server_allocations').get().m;
@@ -483,6 +604,7 @@ app.post('/api/servers/:id/allocations', auth, (req, res) => {
 });
 app.delete('/api/servers/:id/allocations/:allocId', auth, (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'allocations')) return;
   db.prepare('DELETE FROM server_allocations WHERE id = ? AND server_id = ?').run(req.params.allocId, s.id);
   res.json({ ok: true });
 });
@@ -494,6 +616,7 @@ app.delete('/api/servers/:id/allocations/:allocId', auth, (req, res) => {
 // fresh reconfiguration. ip_alias/owner_id are cosmetic/DB-only and don't recreate.
 app.patch('/api/servers/:id', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'settings')) return;
   const { software, version, cpu, ram, ip_alias, owner_id } = req.body;
 
   if (ip_alias !== undefined) db.prepare('UPDATE servers SET ip_alias = ? WHERE id = ?').run(ip_alias, s.id);
@@ -538,11 +661,13 @@ if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
 
 app.get('/api/servers/:id/backups', auth, (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'backups')) return;
   res.json(db.prepare('SELECT * FROM backups WHERE server_id = ? ORDER BY created_at DESC').all(s.id));
 });
 
 app.post('/api/servers/:id/backups', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'backups')) return;
   try {
     const filename = `backup-${s.id}-${Date.now()}.tar`;
     const dest = path.join(BACKUPS_DIR, filename);
@@ -566,6 +691,7 @@ app.get('/api/servers/:id/backups/:backupId/download', (req, res) => {
 
 app.post('/api/servers/:id/backups/:backupId/restore', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'backups')) return;
   const b = db.prepare('SELECT * FROM backups WHERE id = ? AND server_id = ?').get(req.params.backupId, s.id);
   if (!b) return res.status(404).json({ error: 'Backup not found' });
   try {
@@ -576,6 +702,7 @@ app.post('/api/servers/:id/backups/:backupId/restore', auth, async (req, res) =>
 
 app.delete('/api/servers/:id/backups/:backupId', auth, (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'backups')) return;
   const b = db.prepare('SELECT * FROM backups WHERE id = ? AND server_id = ?').get(req.params.backupId, s.id);
   if (b) { try { fs.unlinkSync(path.join(BACKUPS_DIR, b.filename)); } catch (_) {} }
   db.prepare('DELETE FROM backups WHERE id = ? AND server_id = ?').run(req.params.backupId, s.id);
@@ -586,6 +713,7 @@ app.delete('/api/servers/:id/backups/:backupId', auth, (req, res) => {
 // it straight into the server's data directory via the same native archive API.
 app.post('/api/servers/:id/backups/import', auth, async (req, res) => {
   const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'backups')) return;
   const base64 = (req.body.base64 || '').replace(/^data:[^,]+,/, '');
   if (!base64) return res.status(400).json({ error: 'No file data received' });
   try {
@@ -593,9 +721,7 @@ app.post('/api/servers/:id/backups/import', auth, async (req, res) => {
     const isZip = buf[0] === 0x50 && buf[1] === 0x4B; // 'PK' magic bytes
     if (isZip) {
       const filename = `import-${Date.now()}.zip`;
-      await dock.execInContainer(s.container_id, `mkdir -p ${dataDir(s)}`);
-      const b64ForExec = buf.toString('base64');
-      await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && echo '${b64ForExec}' | base64 -d > "${filename}"`);
+      await dock.putFileBuffer(s.container_id, dataDir(s), filename, buf);
       await dock.execInContainer(s.container_id, `cd ${dataDir(s)} && (which unzip >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq unzip) || (apk add --no-cache unzip)) ; unzip -o -q "${filename}" && rm -f "${filename}"`);
     } else {
       const tmp = path.join(BACKUPS_DIR, `import-${s.id}-${Date.now()}.tar`);
@@ -605,6 +731,61 @@ app.post('/api/servers/:id/backups/import', auth, async (req, res) => {
     }
     res.json({ ok: true, note: 'Imported — restart the server to pick up the imported files.' });
   } catch (e) { res.status(500).json({ error: 'Import failed: ' + e.message }); }
+});
+
+// ---------- world installer ----------
+// Uploads a zip/tar of a world folder and extracts it as a named world directory.
+app.post('/api/servers/:id/world/install', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
+  if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
+  const worldName = (req.body.worldName || 'world').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const base64 = (req.body.base64 || '').replace(/^data:[^,]+,/, '');
+  if (!base64) return res.status(400).json({ error: 'No file data received' });
+  try {
+    const buf = Buffer.from(base64, 'base64');
+    const isZip = buf[0] === 0x50 && buf[1] === 0x4B;
+    await dock.execInContainer(s.container_id, `mkdir -p /data/${worldName}`);
+    if (isZip) {
+      const filename = `world-import-${Date.now()}.zip`;
+      await dock.putFileBuffer(s.container_id, '/data', filename, buf);
+      await dock.execInContainer(s.container_id, `cd /data && (which unzip >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq unzip) || (apk add --no-cache unzip)) ; unzip -o -q "${filename}" -d "${worldName}" && rm -f "${filename}"`);
+    } else {
+      const tmp = path.join(BACKUPS_DIR, `world-import-${s.id}-${Date.now()}.tar`);
+      fs.writeFileSync(tmp, buf);
+      await dock.restoreFromFile(s.container_id, `/data/${worldName}`, tmp);
+      fs.unlinkSync(tmp);
+    }
+    res.json({ ok: true, note: `Installed as world "${worldName}". Set level-name=${worldName} in server.properties (Files tab), then restart.` });
+  } catch (e) { res.status(500).json({ error: 'World install failed: ' + e.message }); }
+});
+
+// ---------- datapack installer ----------
+app.post('/api/servers/:id/datapack/install', auth, async (req, res) => {
+  const s = ownedOrAdmin(req, res, req.params.id); if (!s) return;
+  if (!requirePerm(s, req, res, 'files')) return;
+  if (s.type !== 'mc') return res.status(400).json({ error: 'Not a Minecraft server' });
+  const worldName = (req.body.worldName || 'world').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const packName = (req.body.packName || 'datapack').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const base64 = (req.body.base64 || '').replace(/^data:[^,]+,/, '');
+  if (!base64) return res.status(400).json({ error: 'No file data received' });
+  try {
+    const buf = Buffer.from(base64, 'base64');
+    const targetDir = `/data/${worldName}/datapacks/${packName}`;
+    await dock.execInContainer(s.container_id, `mkdir -p "${targetDir}"`);
+    const isZip = buf[0] === 0x50 && buf[1] === 0x4B;
+    if (isZip) {
+      const filename = `dp-import-${Date.now()}.zip`;
+      await dock.putFileBuffer(s.container_id, `/data/${worldName}/datapacks`, filename, buf);
+      await dock.execInContainer(s.container_id, `cd "/data/${worldName}/datapacks" && (which unzip >/dev/null 2>&1 || (apt-get update -qq && apt-get install -y -qq unzip) || (apk add --no-cache unzip)) ; unzip -o -q "${filename}" -d "${packName}" && rm -f "${filename}"`);
+    } else {
+      const tmp = path.join(BACKUPS_DIR, `dp-import-${s.id}-${Date.now()}.tar`);
+      fs.writeFileSync(tmp, buf);
+      await dock.restoreFromFile(s.container_id, targetDir, tmp);
+      fs.unlinkSync(tmp);
+    }
+    res.json({ ok: true, note: `Datapack installed into ${worldName}/datapacks/${packName}. Run "reload" in console or restart.` });
+  } catch (e) { res.status(500).json({ error: 'Datapack install failed: ' + e.message }); }
 });
 
 // ---------- server setups (reusable creation templates) ----------

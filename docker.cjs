@@ -194,8 +194,39 @@ async function restoreFromFile(id, containerPath, srcFilePath) {
   await container.putArchive(fs.createReadStream(srcFilePath), { path: containerPath });
 }
 
+// Writes a single file into a container via a tiny generated tar archive +
+// Docker's native putArchive — no shell/exec argument-length limits, unlike
+// piping base64 through `sh -c echo ... | base64 -d`, which silently breaks
+// (or errors E2BIG) on anything beyond a few hundred KB.
+async function putFileBuffer(id, containerDir, filename, buffer) {
+  const { buildTar } = require('./tar.cjs');
+  const tarBuf = buildTar([{ name: filename, data: buffer }]);
+  const container = docker.getContainer(id);
+  await container.putArchive(tarBuf, { path: containerDir });
+}
+
+// Binary-safe version of execInContainer's output capture — used for downloads,
+// where the content must not be corrupted by utf8 re-encoding.
+async function execInContainerBinary(id, cmd) {
+  const container = docker.getContainer(id);
+  const exec = await container.exec({ Cmd: ['sh', '-c', cmd], AttachStdout: true, AttachStderr: true });
+  return new Promise((resolve, reject) => {
+    exec.start({}, (err, stream) => {
+      if (err) return reject(err);
+      const chunks = [];
+      docker.modem.demuxStream(stream,
+        { write: (c) => chunks.push(c) },
+        { write: () => {} }
+      );
+      stream.on('end', () => resolve(Buffer.concat(chunks)));
+      stream.on('error', reject);
+    });
+  });
+}
+
 module.exports = {
   docker, nextPort, createMcContainer, createNodeContainer,
   startContainer, stopContainer, removeContainer, streamLogs, sendCommand,
-  getSystemInfo, clampResources, execInContainer, backupToFile, restoreFromFile
+  getSystemInfo, clampResources, execInContainer, execInContainerBinary,
+  backupToFile, restoreFromFile, putFileBuffer
 };
